@@ -14,7 +14,7 @@
 
 id = "goglioandrea/appmenu"
 name = "AppMenu"
-version = "2.3.0"
+version = "2.4.0"
 # 42: height = "content" panels. Covers runAsync argv (24), getColor (31),
 # container tooltips (32) and hover_highlight (34). Noctalia v5.4.1 supports 3..43.
 plugin_api = 42
@@ -213,14 +213,15 @@ hover_highlight = false
   min = 0
   max = 24
 
-# One panel per width step: Noctalia v5.4 sizes a panel's width from the
-# manifest only (height follows the content). The bar estimates the open
-# menu's width and opens the narrowest entry it fits in - see
-# common.PANEL_WIDTHS, which must list the same widths.
+# One panel per width step, twice ("a"/"b"): Noctalia v5.4 sizes a panel's
+# width from the manifest only (height follows the content). The bar opens
+# the narrowest step the menu fits in, and alternates slots when switching
+# menus so the new panel replaces the old one in place, under the pointer.
+# common.PANEL_WIDTHS must list the same widths.
 [[panel]]
-id = "menu_160"
+id = "menu_180_a"
 entry = "panel.luau"
-width = 160
+width = 180
 height = "content"
 max_height = 560
 placement = "attached"
@@ -229,9 +230,9 @@ open_near_click = true
 dismiss_on_outside_click = true
 
 [[panel]]
-id = "menu_200"
+id = "menu_180_b"
 entry = "panel.luau"
-width = 200
+width = 180
 height = "content"
 max_height = 560
 placement = "attached"
@@ -240,7 +241,7 @@ open_near_click = true
 dismiss_on_outside_click = true
 
 [[panel]]
-id = "menu_240"
+id = "menu_240_a"
 entry = "panel.luau"
 width = 240
 height = "content"
@@ -251,9 +252,9 @@ open_near_click = true
 dismiss_on_outside_click = true
 
 [[panel]]
-id = "menu_280"
+id = "menu_240_b"
 entry = "panel.luau"
-width = 280
+width = 240
 height = "content"
 max_height = 560
 placement = "attached"
@@ -262,9 +263,9 @@ open_near_click = true
 dismiss_on_outside_click = true
 
 [[panel]]
-id = "menu_340"
+id = "menu_300_a"
 entry = "panel.luau"
-width = 340
+width = 300
 height = "content"
 max_height = 560
 placement = "attached"
@@ -273,9 +274,9 @@ open_near_click = true
 dismiss_on_outside_click = true
 
 [[panel]]
-id = "menu_420"
+id = "menu_300_b"
 entry = "panel.luau"
-width = 420
+width = 300
 height = "content"
 max_height = 560
 placement = "attached"
@@ -284,9 +285,42 @@ open_near_click = true
 dismiss_on_outside_click = true
 
 [[panel]]
-id = "menu_520"
+id = "menu_380_a"
 entry = "panel.luau"
-width = 520
+width = 380
+height = "content"
+max_height = 560
+placement = "attached"
+position = "auto"
+open_near_click = true
+dismiss_on_outside_click = true
+
+[[panel]]
+id = "menu_380_b"
+entry = "panel.luau"
+width = 380
+height = "content"
+max_height = 560
+placement = "attached"
+position = "auto"
+open_near_click = true
+dismiss_on_outside_click = true
+
+[[panel]]
+id = "menu_480_a"
+entry = "panel.luau"
+width = 480
+height = "content"
+max_height = 560
+placement = "attached"
+position = "auto"
+open_near_click = true
+dismiss_on_outside_click = true
+
+[[panel]]
+id = "menu_480_b"
+entry = "panel.luau"
+width = 480
 height = "content"
 max_height = 560
 placement = "attached"

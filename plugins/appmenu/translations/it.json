@@ -91,8 +91,8 @@
       "description": "Come vengono dimensionati i pannelli dei menu.",
       "label": "Larghezza del pannello",
       "options": {
-        "per_menu": "Su misura per ogni menu (breve flash quando si cambia menu)",
-        "stable": "Uguale per tutti i menu dell'app (nessun flash)"
+        "per_menu": "Su misura per ogni menu",
+        "stable": "Uguale per tutti i menu dell'app"
       }
     },
     "show_app_name": {

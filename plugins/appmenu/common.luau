@@ -14,11 +14,14 @@ local M = {}
 M.SYNTHETIC_SERVICE = "::synthetic"
 -- Noctalia v5.4 panels have a fixed width per [[panel]] entry (only the
 -- height can follow the content), so plugin.toml declares one panel per
--- width step and the bar opens the narrowest one the menu fits in.
-M.PANEL_WIDTHS = { 160, 200, 240, 280, 340, 420, 520 }
+-- width step, twice ("a"/"b" slots). Switching menus opens the *other*
+-- slot: Noctalia then replaces the open panel instantly and anchors the new
+-- one under the pointer, so the panel follows the hovered title without a
+-- close/reopen gap (which would hand focus back to the app and flash).
+M.PANEL_WIDTHS = { 180, 240, 300, 380, 480 }
 
-function M.panelId(width)
-  return `goglioandrea/appmenu:menu_{width}`
+function M.panelId(width, slot)
+  return `goglioandrea/appmenu:menu_{width}_{slot}`
 end
 
 -- Room the host keeps around a panel's content (its own padding), in px.
@@ -84,14 +87,14 @@ function M.estimateMenuWidth(node, childrenOf)
   return widest + 2 * panelPadding + HOST_PADDING + extra
 end
 
--- The narrowest declared panel at least `width` wide (or the widest one).
-function M.panelForWidth(width)
+-- The narrowest declared width step at least `width` wide (or the widest).
+function M.widthStep(width)
   for _, w in ipairs(M.PANEL_WIDTHS) do
     if w >= width then
-      return M.panelId(w)
+      return w
     end
   end
-  return M.panelId(M.PANEL_WIDTHS[#M.PANEL_WIDTHS])
+  return M.PANEL_WIDTHS[#M.PANEL_WIDTHS]
 end
 
 -- Fully transparent fill. Passing this (instead of dropping `fill`) matters:
