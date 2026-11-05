@@ -14,7 +14,7 @@
 
 id = "goglioandrea/appmenu"
 name = "AppMenu"
-version = "2.2.0"
+version = "2.3.0"
 # 42: height = "content" panels. Covers runAsync argv (24), getColor (31),
 # container tooltips (32) and hover_highlight (34). Noctalia v5.4.1 supports 3..43.
 plugin_api = 42
@@ -100,6 +100,17 @@ description_key = "settings.panel_padding.description"
 default = 0
 min = 0
 max = 32
+
+[[setting]]
+key = "panel_width_mode"
+type = "select"
+label_key = "settings.panel_width_mode.label"
+description_key = "settings.panel_width_mode.description"
+default = "stable"
+options = [
+  { value = "stable", label_key = "settings.panel_width_mode.options.stable" },
+  { value = "per_menu", label_key = "settings.panel_width_mode.options.per_menu" },
+]
 
 [[setting]]
 key = "panel_extra_width"

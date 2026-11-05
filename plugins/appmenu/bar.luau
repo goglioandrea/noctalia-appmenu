@@ -61,12 +61,32 @@ local function childrenOf(node)
   return cached or own
 end
 
-local function panelFor(index)
+local function widthOf(index)
   local node = active ~= nil and active.menu ~= nil and common.children(active.menu)[index] or nil
   if node == nil then
-    return common.panelForWidth(0)
+    return 0
   end
-  return common.panelForWidth(common.estimateMenuWidth(node, childrenOf))
+  return common.estimateMenuWidth(node, childrenOf)
+end
+
+-- "stable" (default): one width for every menu of the app, the widest one's.
+-- Moving between menus then never swaps panels; a swap closes one panel
+-- before opening the next, and in between the compositor hands focus back
+-- to the app window, which flashes. "per_menu": each menu gets its own
+-- fitted width, at the cost of that flash when the width changes.
+local function panelFor(index)
+  if noctalia.getConfig("panel_width_mode") == "per_menu" then
+    return common.panelForWidth(widthOf(index))
+  end
+  local widest = widthOf(index)
+  if active ~= nil and active.menu ~= nil then
+    for i, item in ipairs(common.children(active.menu)) do
+      if not common.isSeparator(item) then
+        widest = math.max(widest, widthOf(i))
+      end
+    end
+  end
+  return common.panelForWidth(widest)
 end
 
 -- Open `index`'s menu, close it when it is the open one (`toggle`), or move
@@ -82,6 +102,10 @@ local function openMenu(index, toggle)
   end
   local target = panelFor(index)
   local previous = panelOpen and openPanel or nil
+  if previous ~= nil and noctalia.getConfig("panel_width_mode") ~= "per_menu" then
+    -- Already open at the app's widest width: just switch content.
+    target = previous
+  end
   openIndex = index
   openPanel = target
   panelOpen = true

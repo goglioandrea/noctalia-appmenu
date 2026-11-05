@@ -87,6 +87,14 @@
       "description": "Space between the panel edge and the menu items, in pixels.",
       "label": "Panel inner margin"
     },
+    "panel_width_mode": {
+      "description": "How menu panels are sized.",
+      "label": "Panel width",
+      "options": {
+        "per_menu": "Fitted to each menu (brief flicker when switching)",
+        "stable": "Same for all menus of the app (no flicker)"
+      }
+    },
     "show_app_name": {
       "description": "Show the focused application's name before its menus.",
       "label": "Show application name"

@@ -87,6 +87,14 @@
       "description": "Spazio tra il bordo del pannello e le voci, in pixel.",
       "label": "Margine interno del pannello"
     },
+    "panel_width_mode": {
+      "description": "Come vengono dimensionati i pannelli dei menu.",
+      "label": "Larghezza del pannello",
+      "options": {
+        "per_menu": "Su misura per ogni menu (breve flash quando si cambia menu)",
+        "stable": "Uguale per tutti i menu dell'app (nessun flash)"
+      }
+    },
     "show_app_name": {
       "description": "Mostra il nome dell'applicazione attiva prima dei suoi menu.",
       "label": "Mostra il nome dell'applicazione"
