@@ -764,6 +764,12 @@ pub async fn find_app_for_pid(
     // niri's wl_client PID equals the AT-SPI app's PID. Fast path; one
     // round-trip per registered app.
     let mut candidates: Vec<(String, OwnedObjectPath)> = Vec::new();
+    // Several AT-SPI connections can share one PID: Konsole and Dolphin
+    // register two (seen live: `:1.33` + `:1.34`), only one of which holds
+    // the windows. Upstream returned the first PID match, which could be the
+    // empty one, so the menubar was never found. Collect them all and prefer
+    // a connection that actually has children (frames).
+    let mut pid_matches: Vec<(String, OwnedObjectPath)> = Vec::new();
     for i in 0..count {
         let (service, path) = match registry.get_child_at_index(i).await {
             Ok(v) => v,
@@ -778,12 +784,29 @@ pub async fn find_app_for_pid(
             Err(_) => continue,
         };
         if app_pid == pid {
-            // ADR-0030: do NOT return the app root for a multi-window
-            // process — `find_menubar`'s DFS would grab an arbitrary
-            // window's menubar. Scope to the niri-focused window's frame.
-            return Ok(resolve_focused_frame(a11y, service, path, focus_title).await);
+            pid_matches.push((service, path));
+            continue;
         }
         candidates.push((service, path));
+    }
+
+    if !pid_matches.is_empty() {
+        let mut chosen: Option<(String, OwnedObjectPath)> = None;
+        for (service, path) in &pid_matches {
+            let frames = read_child_count(a11y, service, &path.as_ref())
+                .await
+                .unwrap_or(0);
+            tracing::debug!(%service, pid, frames, "atspi connection for focused pid");
+            if frames > 0 {
+                chosen = Some((service.clone(), path.clone()));
+                break;
+            }
+        }
+        let (service, path) = chosen.unwrap_or_else(|| pid_matches.swap_remove(0));
+        // ADR-0030: do NOT return the app root for a multi-window
+        // process — `find_menubar`'s DFS would grab an arbitrary
+        // window's menubar. Scope to the focused window's frame.
+        return Ok(resolve_focused_frame(a11y, service, path, focus_title).await);
     }
 
     // Pass 2: AT-SPI's own active-window detection.
