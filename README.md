@@ -103,7 +103,7 @@ classic one (0.56 and older).
 
 Plugin settings (Settings → Plugins → AppMenu): **Bridge command**.
 Widget settings (per bar widget): show the app name, maximum number of menus,
-maximum title length, hide when empty.
+maximum title length. The widget takes no space when no application is focused.
 
 The bridge itself reads `~/.config/noctalia-appmenu-bridge/config.toml` (optional;
 for example `desktop_fallback = false` to show nothing for apps without a menu).

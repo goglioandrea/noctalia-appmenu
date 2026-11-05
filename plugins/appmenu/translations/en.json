@@ -26,10 +26,6 @@
       "description": "Command or absolute path of noctalia-appmenu-bridge.",
       "label": "Bridge command"
     },
-    "hide_when_empty": {
-      "description": "Take no bar space while no application is focused.",
-      "label": "Hide when empty"
-    },
     "item_hover_highlight": {
       "description": "Draw a background behind the item under the pointer.",
       "label": "Highlight item on hover"
