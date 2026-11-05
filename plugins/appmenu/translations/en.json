@@ -38,6 +38,10 @@
       "description": "Vertical padding of each menu item, in pixels.",
       "label": "Item padding"
     },
+    "item_padding_h": {
+      "description": "Horizontal padding of each menu item, in pixels. Also widens the panel.",
+      "label": "Item side padding"
+    },
     "item_spacing": {
       "description": "Pixels between menu items.",
       "label": "Item spacing"
@@ -78,6 +82,14 @@
     "menu_text_color": {
       "description": "Text color of the menu titles. Empty: same as the widget text.",
       "label": "Menu title color"
+    },
+    "panel_extra_width": {
+      "description": "Pixels added to (or removed from) the estimated menu width. Raise it if long items get cut, lower it if panels are too wide.",
+      "label": "Panel width adjustment"
+    },
+    "panel_padding": {
+      "description": "Space between the panel edge and the menu items, in pixels.",
+      "label": "Panel inner margin"
     },
     "show_app_name": {
       "description": "Show the focused application's name before its menus.",

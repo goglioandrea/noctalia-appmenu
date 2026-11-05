@@ -38,6 +38,10 @@
       "description": "Margine verticale di ogni voce, in pixel.",
       "label": "Margine delle voci"
     },
+    "item_padding_h": {
+      "description": "Margine orizzontale di ogni voce, in pixel. Allarga anche il pannello.",
+      "label": "Margine laterale delle voci"
+    },
     "item_spacing": {
       "description": "Pixel tra una voce e l'altra.",
       "label": "Spazio tra le voci"
@@ -78,6 +82,14 @@
     "menu_text_color": {
       "description": "Colore del testo dei titoli dei menu. Vuoto: come il testo del widget.",
       "label": "Colore dei titoli dei menu"
+    },
+    "panel_extra_width": {
+      "description": "Pixel aggiunti (o tolti) alla larghezza stimata del menu. Aumentalo se le voci lunghe vengono tagliate, diminuiscilo se i pannelli sono troppo larghi.",
+      "label": "Correzione larghezza pannello"
+    },
+    "panel_padding": {
+      "description": "Spazio tra il bordo del pannello e le voci, in pixel.",
+      "label": "Margine interno del pannello"
     },
     "show_app_name": {
       "description": "Mostra il nome dell'applicazione attiva prima dei suoi menu.",

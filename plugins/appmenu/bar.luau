@@ -12,7 +12,9 @@ local active = nil
 local status = { state = "starting" }
 local panelOpen = false
 local openIndex = nil
+local openPanel = nil -- entry id of the panel showing openIndex
 local hovered = nil
+local expanded = {} -- lazily realised submenus, as the panel sees them
 
 local function topLevelMenus()
   local menus = {}
@@ -48,17 +50,49 @@ local function appName()
   return short:sub(1, 1):upper() .. short:sub(2)
 end
 
-local function openMenu(index)
+local render
+
+local function childrenOf(node)
+  local own = common.children(node)
+  if #own > 0 then
+    return own
+  end
+  local cached = expanded[`{node.service or ""}\n{node.path or ""}`]
+  return cached or own
+end
+
+local function panelFor(index)
+  local node = active ~= nil and active.menu ~= nil and common.children(active.menu)[index] or nil
+  if node == nil then
+    return common.panelForWidth(0)
+  end
+  return common.panelForWidth(common.estimateMenuWidth(node, childrenOf))
+end
+
+-- Open `index`'s menu, close it when it is the open one (`toggle`), or move
+-- the open panel to it. A menu needing another width opens a different
+-- panel entry; the old one is closed first.
+local function openMenu(index, toggle)
   if panelOpen and openIndex == index then
-    openIndex = nil
-    noctalia.togglePanel(common.PANEL_ID)
+    if toggle then
+      openIndex = nil
+      noctalia.togglePanel(openPanel)
+    end
     return
   end
+  local target = panelFor(index)
+  local previous = panelOpen and openPanel or nil
   openIndex = index
-  noctalia.state.set("appmenu.open", { index = index, nonce = common.nonce() })
-  if not panelOpen then
-    noctalia.togglePanel(common.PANEL_ID)
+  openPanel = target
+  panelOpen = true
+  noctalia.state.set("appmenu.open", { index = index, panel = target, nonce = common.nonce() })
+  if previous ~= target then
+    if previous ~= nil then
+      noctalia.togglePanel(previous)
+    end
+    noctalia.togglePanel(target)
   end
+  render()
 end
 
 local function tooltipFor()
@@ -71,8 +105,6 @@ local function tooltipFor()
   end
   return nil
 end
-
-local render
 
 local intSetting = common.intSetting
 local colorSetting = common.colorSetting
@@ -101,9 +133,14 @@ local function titleButton(menu, opts)
     fill = fill,
     opacity = menu.enabled and 1 or 0.5,
     onClick = function()
-      openMenu(menu.index)
+      openMenu(menu.index, true)
     end,
     onHover = function(state)
+      -- Like a desktop menubar: once a menu is open, pointing at another
+      -- title switches to it without a click.
+      if state == "true" and panelOpen and openIndex ~= menu.index and menu.enabled then
+        openMenu(menu.index, false)
+      end
       if opts.highlight ~= "hover" then
         return
       end
@@ -214,7 +251,7 @@ end
 function onClick()
   local menus = topLevelMenus()
   if #menus > 0 then
-    openMenu(menus[1].index)
+    openMenu(menus[1].index, true)
   end
 end
 
@@ -227,6 +264,7 @@ noctalia.state.watch("appmenu.active", function(value)
   active = type(value) == "table" and value or nil
   if active == nil or active.app_id ~= previousApp then
     hovered = nil
+    expanded = {}
   end
   render()
 end)
@@ -238,13 +276,31 @@ noctalia.state.watch("appmenu.status", function(value)
   end
 end)
 
+noctalia.state.watch("appmenu.expanded", function(result)
+  if type(result) == "table" and type(result.children) == "table" then
+    expanded[`{result.service or ""}\n{result.path or ""}`] = result.children
+  end
+end)
+
 noctalia.state.watch("appmenu.panel", function(value)
-  panelOpen = type(value) == "table" and value.open == true
-  if type(value) == "table" and type(value.index) == "number" then
-    openIndex = value.index
+  if type(value) ~= "table" then
+    return
+  end
+  if value.open == true then
+    panelOpen = true
+    openPanel = value.panel or openPanel
+    if type(value.index) == "number" then
+      openIndex = value.index
+    end
+  elseif value.panel ~= nil and value.panel ~= openPanel then
+    -- The panel we just switched away from finished closing: not news.
+    return
+  else
+    panelOpen = false
   end
   if not panelOpen then
     openIndex = nil
+    openPanel = nil
     -- Catch up with any focus change ignored while the panel was open.
     local latest = noctalia.state.get("appmenu.active")
     active = type(latest) == "table" and latest or nil

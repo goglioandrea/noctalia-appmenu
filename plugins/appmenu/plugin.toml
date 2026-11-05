@@ -14,7 +14,7 @@
 
 id = "goglioandrea/appmenu"
 name = "AppMenu"
-version = "2.1.0"
+version = "2.2.0"
 # 42: height = "content" panels. Covers runAsync argv (24), getColor (31),
 # container tooltips (32) and hover_highlight (34). Noctalia v5.4.1 supports 3..43.
 plugin_api = 42
@@ -33,6 +33,82 @@ label_key = "settings.bridge_path.label"
 description_key = "settings.bridge_path.description"
 default = "noctalia-appmenu-bridge"
 advanced = true
+
+# Menu panel appearance. Plugin-level (Settings -> Plugins -> AppMenu, gear)
+# because several panel entries share them, and the bar needs them to size
+# the panel.
+[[setting]]
+key = "show_menu_title"
+type = "bool"
+label_key = "settings.show_menu_title.label"
+description_key = "settings.show_menu_title.description"
+default = false
+
+[[setting]]
+key = "show_menu_arrows"
+type = "bool"
+label_key = "settings.show_menu_arrows.label"
+description_key = "settings.show_menu_arrows.description"
+default = false
+
+[[setting]]
+key = "item_text_color"
+type = "color"
+label_key = "settings.item_text_color.label"
+description_key = "settings.item_text_color.description"
+default = ""
+
+[[setting]]
+key = "item_hover_highlight"
+type = "bool"
+label_key = "settings.item_hover_highlight.label"
+description_key = "settings.item_hover_highlight.description"
+default = true
+
+[[setting]]
+key = "item_padding"
+type = "int"
+label_key = "settings.item_padding.label"
+description_key = "settings.item_padding.description"
+default = 3
+min = 0
+max = 24
+
+[[setting]]
+key = "item_spacing"
+type = "int"
+label_key = "settings.item_spacing.label"
+description_key = "settings.item_spacing.description"
+default = 0
+min = 0
+max = 24
+
+[[setting]]
+key = "item_padding_h"
+type = "int"
+label_key = "settings.item_padding_h.label"
+description_key = "settings.item_padding_h.description"
+default = 6
+min = 0
+max = 32
+
+[[setting]]
+key = "panel_padding"
+type = "int"
+label_key = "settings.panel_padding.label"
+description_key = "settings.panel_padding.description"
+default = 0
+min = 0
+max = 32
+
+[[setting]]
+key = "panel_extra_width"
+type = "int"
+label_key = "settings.panel_extra_width.label"
+description_key = "settings.panel_extra_width.description"
+default = 0
+min = -80
+max = 200
 
 [[widget]]
 id = "bar"
@@ -133,10 +209,14 @@ hover_highlight = false
   description_key = "settings.hide_when_empty.description"
   default = false
 
+# One panel per width step: Noctalia v5.4 sizes a panel's width from the
+# manifest only (height follows the content). The bar estimates the open
+# menu's width and opens the narrowest entry it fits in - see
+# common.PANEL_WIDTHS, which must list the same widths.
 [[panel]]
-id = "menu"
+id = "menu_160"
 entry = "panel.luau"
-width = 320
+width = 160
 height = "content"
 max_height = 560
 placement = "attached"
@@ -144,53 +224,71 @@ position = "auto"
 open_near_click = true
 dismiss_on_outside_click = true
 
-  # Shown under Settings -> Plugins -> AppMenu (gear), with the host's own
-  # placement / position / open-near-click options.
-  [[panel.setting]]
-  key = "show_menu_title"
-  type = "bool"
-  label_key = "settings.show_menu_title.label"
-  description_key = "settings.show_menu_title.description"
-  default = false
+[[panel]]
+id = "menu_200"
+entry = "panel.luau"
+width = 200
+height = "content"
+max_height = 560
+placement = "attached"
+position = "auto"
+open_near_click = true
+dismiss_on_outside_click = true
 
-  [[panel.setting]]
-  key = "show_menu_arrows"
-  type = "bool"
-  label_key = "settings.show_menu_arrows.label"
-  description_key = "settings.show_menu_arrows.description"
-  default = false
+[[panel]]
+id = "menu_240"
+entry = "panel.luau"
+width = 240
+height = "content"
+max_height = 560
+placement = "attached"
+position = "auto"
+open_near_click = true
+dismiss_on_outside_click = true
 
-  [[panel.setting]]
-  key = "item_text_color"
-  type = "color"
-  label_key = "settings.item_text_color.label"
-  description_key = "settings.item_text_color.description"
-  default = ""
+[[panel]]
+id = "menu_280"
+entry = "panel.luau"
+width = 280
+height = "content"
+max_height = 560
+placement = "attached"
+position = "auto"
+open_near_click = true
+dismiss_on_outside_click = true
 
-  [[panel.setting]]
-  key = "item_hover_highlight"
-  type = "bool"
-  label_key = "settings.item_hover_highlight.label"
-  description_key = "settings.item_hover_highlight.description"
-  default = true
+[[panel]]
+id = "menu_340"
+entry = "panel.luau"
+width = 340
+height = "content"
+max_height = 560
+placement = "attached"
+position = "auto"
+open_near_click = true
+dismiss_on_outside_click = true
 
-  [[panel.setting]]
-  key = "item_padding"
-  type = "int"
-  label_key = "settings.item_padding.label"
-  description_key = "settings.item_padding.description"
-  default = 6
-  min = 0
-  max = 24
+[[panel]]
+id = "menu_420"
+entry = "panel.luau"
+width = 420
+height = "content"
+max_height = 560
+placement = "attached"
+position = "auto"
+open_near_click = true
+dismiss_on_outside_click = true
 
-  [[panel.setting]]
-  key = "item_spacing"
-  type = "int"
-  label_key = "settings.item_spacing.label"
-  description_key = "settings.item_spacing.description"
-  default = 1
-  min = 0
-  max = 24
+[[panel]]
+id = "menu_520"
+entry = "panel.luau"
+width = 520
+height = "content"
+max_height = 560
+placement = "attached"
+position = "auto"
+open_near_click = true
+dismiss_on_outside_click = true
 
 [[service]]
 id = "service"

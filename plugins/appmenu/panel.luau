@@ -21,6 +21,9 @@ local expanded = {} -- [service .. "\n" .. path] = { children, failed }
 local pending = {} -- same keys, expansion in flight
 local hoveredKey = nil
 local isOpen = false
+-- plugin.toml declares this script once per width step; the bar names the
+-- entry it opened in "appmenu.open", so each instance learns its own id.
+local myPanel = nil
 
 local function tr(key, subst)
   return noctalia.tr(key, subst)
@@ -176,7 +179,7 @@ local function itemRow(item, index, opts)
   return ui.row({
     key = key,
     gap = 8,
-    paddingH = 10,
+    paddingH = opts.paddingH,
     paddingV = opts.paddingV,
     radius = 6,
     align = "center",
@@ -218,7 +221,7 @@ local function stepMenu(delta)
       menuIndex = nextIdx
       stack = {}
       hoveredKey = nil
-      noctalia.state.set("appmenu.panel", { open = true, index = menuIndex })
+      noctalia.state.set("appmenu.panel", { open = true, index = menuIndex, panel = myPanel })
       render()
       return
     end
@@ -322,7 +325,8 @@ render = function()
     toggles = hasToggles(kids),
     color = common.colorSetting("item_text_color"),
     chevronColor = common.colorSetting("item_text_color") or "on_surface_variant",
-    paddingV = common.intSetting("item_padding", 6, 0, 24),
+    paddingV = common.intSetting("item_padding", 3, 0, 24),
+    paddingH = common.intSetting("item_padding_h", 6, 0, 32),
     hover = noctalia.getConfig("item_hover_highlight") ~= false,
   }
   local lastWasSeparator = true
@@ -347,8 +351,12 @@ render = function()
     table.insert(body, head)
     table.insert(body, ui.separator({}))
   end
-  table.insert(body, ui.scroll({ flexGrow = 1, gap = common.intSetting("item_spacing", 1, 0, 24) }, rows))
-  panel.render(ui.column({ gap = 6, padding = 6, flexGrow = 1 }, body))
+  table.insert(body, ui.scroll({ flexGrow = 1, gap = common.intSetting("item_spacing", 0, 0, 24) }, rows))
+  panel.render(ui.column({
+    gap = 4,
+    padding = common.intSetting("panel_padding", 0, 0, 32),
+    flexGrow = 1,
+  }, body))
 end
 
 local function showMenu(index)
@@ -367,10 +375,11 @@ function onOpen(_context)
   local request = noctalia.state.get("appmenu.open")
   if type(request) == "table" then
     menuIndex = tonumber(request.index) or 1
+    myPanel = type(request.panel) == "string" and request.panel or myPanel
   end
   stack = {}
   hoveredKey = nil
-  noctalia.state.set("appmenu.panel", { open = true, index = menuIndex })
+  noctalia.state.set("appmenu.panel", { open = true, index = menuIndex, panel = myPanel })
   requestExpand(topLevel()[menuIndex])
   render()
 end
@@ -382,13 +391,15 @@ function onClose()
   -- Catch up with any focus change ignored while open.
   local latest = noctalia.state.get("appmenu.active")
   active = type(latest) == "table" and latest or nil
-  noctalia.state.set("appmenu.panel", { open = false })
+  noctalia.state.set("appmenu.panel", { open = false, panel = myPanel })
 end
 
 noctalia.state.watch("appmenu.open", function(request)
-  if isOpen and type(request) == "table" then
+  -- Only the instance the bar addressed follows; a request for another
+  -- width step means this one is about to be closed.
+  if isOpen and type(request) == "table" and (request.panel == nil or request.panel == myPanel) then
     showMenu(tonumber(request.index))
-    noctalia.state.set("appmenu.panel", { open = true, index = menuIndex })
+    noctalia.state.set("appmenu.panel", { open = true, index = menuIndex, panel = myPanel })
   end
 end)
 

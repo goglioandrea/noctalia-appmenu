@@ -12,7 +12,87 @@
 local M = {}
 
 M.SYNTHETIC_SERVICE = "::synthetic"
-M.PANEL_ID = "goglioandrea/appmenu:menu"
+-- Noctalia v5.4 panels have a fixed width per [[panel]] entry (only the
+-- height can follow the content), so plugin.toml declares one panel per
+-- width step and the bar opens the narrowest one the menu fits in.
+M.PANEL_WIDTHS = { 160, 200, 240, 280, 340, 420, 520 }
+
+function M.panelId(width)
+  return `goglioandrea/appmenu:menu_{width}`
+end
+
+-- Room the host keeps around a panel's content (its own padding), in px.
+local HOST_PADDING = 24
+-- Average glyph advance of the panel's default text, in px. An estimate:
+-- the "extra width" setting corrects it for wider or narrower fonts.
+local CHAR_PX = 7.5
+local GLYPH_COLUMN = 22 -- check/radio or chevron column, incl. gap
+local NAV_BUTTON = 34
+
+local function textWidth(text)
+  local s = M.cleanLabel(text)
+  return (utf8.len(s) or #s) * CHAR_PX
+end
+
+-- Width a menu needs, in px: its widest row at any depth (submenus open in
+-- the same panel), plus the header and all paddings.
+-- `childrenOf(node)` returns a node's children, lazily expanded ones included.
+function M.estimateMenuWidth(node, childrenOf)
+  local paddingH = M.intSetting("item_padding_h", 6, 0, 32)
+  local widest = 0
+  local function walk(n, depth)
+    local kids = childrenOf(n)
+    local toggles = false
+    for _, item in ipairs(kids) do
+      if type(item) == "table" and (item.toggle_type == "checkmark" or item.toggle_type == "radio") then
+        toggles = true
+      end
+    end
+    for _, item in ipairs(kids) do
+      if type(item) == "table" and not M.isSeparator(item) then
+        local w = textWidth(item.label) + 2 * paddingH
+        if toggles then
+          w += GLYPH_COLUMN
+        end
+        if M.isSubmenu(item) then
+          w += GLYPH_COLUMN
+          if depth < 4 then
+            -- Inside a submenu the header is back button + its name.
+            widest = math.max(widest, NAV_BUTTON + textWidth(item.label))
+            walk(item, depth + 1)
+          end
+        end
+        widest = math.max(widest, w)
+      end
+    end
+  end
+  walk(node, 1)
+  if #childrenOf(node) == 0 then
+    -- Not realised yet (lazy menu): leave room for what will arrive.
+    widest = math.max(widest, 220)
+  end
+  local headerW = 0
+  if noctalia.getConfig("show_menu_title") == true then
+    headerW += textWidth(node.label)
+  end
+  if noctalia.getConfig("show_menu_arrows") == true then
+    headerW += 2 * NAV_BUTTON
+  end
+  widest = math.max(widest, headerW)
+  local panelPadding = M.intSetting("panel_padding", 0, 0, 32)
+  local extra = M.intSetting("panel_extra_width", 0, -80, 200)
+  return widest + 2 * panelPadding + HOST_PADDING + extra
+end
+
+-- The narrowest declared panel at least `width` wide (or the widest one).
+function M.panelForWidth(width)
+  for _, w in ipairs(M.PANEL_WIDTHS) do
+    if w >= width then
+      return M.panelId(w)
+    end
+  end
+  return M.panelId(M.PANEL_WIDTHS[#M.PANEL_WIDTHS])
+end
 
 -- Fully transparent fill. Passing this (instead of dropping `fill`) matters:
 -- the host keeps a container's previous fill when the prop disappears.
