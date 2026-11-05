@@ -173,7 +173,10 @@ render = function()
     barWidget.clearTooltip()
   end
 
-  if #menus == 0 and active == nil and noctalia.getConfig("hide_when_empty") == true then
+  -- Only a broken bridge earns a mark when there is nothing else to show;
+  -- an empty workspace takes no bar space at all.
+  local problem = status.state == "missing" or (status.state == "error" and active == nil)
+  if #menus == 0 and not problem and (active == nil or appName() == "") then
     barWidget.setVisible(false)
     return
   end
@@ -181,7 +184,10 @@ render = function()
 
   if barWidget.isVertical() then
     barWidget.render(ui.column({ align = "center" }, {
-      ui.glyph({ name = status.state == "missing" and "alert-triangle" or "menu-2" }),
+      ui.glyph({
+        name = problem and "alert-triangle" or "menu-2",
+        color = problem and "error" or nil,
+      }),
     }))
     return
   end
@@ -203,7 +209,7 @@ render = function()
     end
   end
 
-  if status.state == "missing" or (status.state == "error" and active == nil) then
+  if problem then
     table.insert(children, ui.glyph({ name = "alert-triangle", color = "error" }))
     spacer(appGap)
   end
@@ -239,8 +245,9 @@ render = function()
   end
 
   if #children == 0 then
-    -- Something must stay clickable/hoverable so the tooltip can explain.
-    table.insert(children, ui.glyph({ name = "menu-2", color = "on_surface_variant" }))
+    -- App name hidden by the user and no menus: nothing to draw.
+    barWidget.setVisible(false)
+    return
   end
 
   barWidget.render(ui.row({ gap = 0, align = "center" }, children))

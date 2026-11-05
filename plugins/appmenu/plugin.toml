@@ -202,13 +202,6 @@ hover_highlight = false
   min = 0
   max = 24
 
-  [[widget.setting]]
-  key = "hide_when_empty"
-  type = "bool"
-  label_key = "settings.hide_when_empty.label"
-  description_key = "settings.hide_when_empty.description"
-  default = false
-
 # One panel per width step: Noctalia v5.4 sizes a panel's width from the
 # manifest only (height follows the content). The bar estimates the open
 # menu's width and opens the narrowest entry it fits in - see

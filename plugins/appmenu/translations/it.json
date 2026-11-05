@@ -26,10 +26,6 @@
       "description": "Comando o percorso assoluto di noctalia-appmenu-bridge.",
       "label": "Comando del bridge"
     },
-    "hide_when_empty": {
-      "description": "Non occupare spazio nella barra quando nessuna applicazione è attiva.",
-      "label": "Nascondi se vuoto"
-    },
     "item_hover_highlight": {
       "description": "Disegna uno sfondo dietro la voce sotto il puntatore.",
       "label": "Evidenzia la voce al passaggio del mouse"
