@@ -6,11 +6,11 @@ yolo-labz, "niri only") do **not** apply here.
 
 ## What this project is
 
-A global menu for **Noctalia v5** (native shell, Luau plugins) on **niri and Umbriel**,
+A global menu for **Noctalia v5** (native shell, Luau plugins) on **niri, Umbriel and Hyprland**,
 developed and used on **Arch Linux**.
 
-- `bridge/` (Rust): follows compositor focus (`niri.rs`, `umbriel.rs` behind the
-  `FocusSink` trait), walks the focused app's menubar over AT-SPI (`atspi.rs`),
+- `bridge/` (Rust): follows compositor focus (`niri.rs`, `umbriel.rs`, `hyprland.rs`
+  behind the `FocusSink` trait), walks the focused app's menubar over AT-SPI (`atspi.rs`),
   publishes `active.json` + JSON lines on stdout in `--stream` mode (`publish.rs`).
   `wm.rs` owns compositor detection, window focus and the allow-listed window actions.
 - `plugins/appmenu/` (Luau): `service.luau` runs the bridge via `noctalia.runStream`
@@ -30,6 +30,10 @@ history.
 - Umbriel IPC: https://docs.noctalia.dev/umbriel/ipc/ (window ids are strings;
   `subscribe` → full `windows` snapshots; `active` = keyboard focus).
 - niri IPC: https://niri-wm.github.io/niri/IPC.html
+- Hyprland IPC: `.socket.sock` (request → reply until EOF, `j/` = JSON) and
+  `.socket2.sock` (`EVENT>>DATA` lines). From 0.57 `dispatch` takes Lua
+  (`hl.dsp.…`); up to 0.56 the classic dispatcher syntax. `hyprland::dispatch`
+  tries both. Validate addresses with `hyprland::parse_address`.
 
 ## Rules
 

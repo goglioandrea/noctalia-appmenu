@@ -1,8 +1,8 @@
 # noctalia-appmenu (Noctalia v5 fork)
 
 A macOS/KDE-style **global menu** for [Noctalia](https://github.com/noctalia-dev/noctalia) v5:
-the focused application's menubar, shown in the bar. Works on **niri** and
-**Umbriel**.
+the focused application's menubar, shown in the bar. Works on **niri**,
+**Umbriel** and **Hyprland**.
 
 This is a fork of [yolo-labz/noctalia-appmenu](https://github.com/yolo-labz/noctalia-appmenu),
 which targets the Quickshell-based Noctalia v4 and niri only. Noctalia v5 replaced
@@ -12,7 +12,7 @@ be carried over. What changed:
 | | upstream | this fork |
 |---|---|---|
 | Shell | Noctalia v4 (Quickshell, QML plugin) | **Noctalia v5.4+** (Luau plugin, `plugin_api = 42`) |
-| Compositors | niri | **niri and Umbriel**, detected automatically |
+| Compositors | niri | **niri, Umbriel and Hyprland**, detected automatically |
 | Bridge start | systemd user service (Home-Manager) | **started by the plugin itself** |
 | Updates to the UI | `qs ipc call` | JSON lines on the bridge's stdout (`--stream`) |
 | Packaging | Nix flake | **Arch `PKGBUILD`** (Nix files kept, untested) |
@@ -21,7 +21,8 @@ be carried over. What changed:
 
 ```
  compositor IPC ──► bridge ──► AT-SPI walk of the focused app's menubar
- (niri / Umbriel)     │
+ (niri / Umbriel /    │
+  Hyprland)           │
                       ├─► ~/.cache/noctalia-appmenu/active.json   (0600, atomic)
                       └─► stdout: {"event":"active",…}  ──►  plugin service
                                                                │
@@ -91,10 +92,12 @@ accessibility bus when it starts, and Qt checks it at launch.
 `accessibility.force_disabled = 0`), but its menus only fill in when visibly opened,
 which would leave Firefox's own menubar pinned on screen. The bridge therefore serves
 the fallback for Firefox. A clean fix needs the compositor to advertise
-`org_kde_kwin_appmenu_manager`; neither niri nor Umbriel does today.
+`org_kde_kwin_appmenu_manager`; niri, Umbriel and Hyprland do not today.
 
 The window controls in the fallback map to each compositor's own actions. On
-Umbriel, *Expand Column to Available Width* has no equivalent and is hidden.
+Umbriel and Hyprland, *Expand Column to Available Width* has no equivalent and is
+hidden. On Hyprland both dispatch syntaxes are handled: the Lua one (0.57+) and the
+classic one (0.56 and older).
 
 ## Configuration
 
@@ -106,7 +109,7 @@ The bridge itself reads `~/.config/noctalia-appmenu-bridge/config.toml` (optiona
 for example `desktop_fallback = false` to show nothing for apps without a menu).
 
 To force a compositor when both sockets exist (nested sessions):
-`NOCTALIA_APPMENU_COMPOSITOR=niri` or `=umbriel` in the shell's environment.
+`NOCTALIA_APPMENU_COMPOSITOR=niri`, `=umbriel` or `=hyprland` in the shell's environment.
 
 ## Troubleshooting
 
@@ -136,6 +139,7 @@ bridge/            Rust bridge (compositor focus → AT-SPI → active.json / st
   src/wm.rs          compositor detection, window focus, allow-listed window actions
   src/niri.rs        niri focus tracker
   src/umbriel.rs     Umbriel focus tracker
+  src/hyprland.rs    Hyprland focus tracker and dispatch (Lua + classic syntax)
   src/publish.rs     private active.json + stdout stream
 plugins/appmenu/   Noctalia v5 plugin (plugin.toml, service/bar/panel .luau, translations)
 packaging/arch/    PKGBUILD

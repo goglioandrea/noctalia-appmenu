@@ -2,7 +2,7 @@
 #
 # The focused application's menubar, read over AT-SPI by the
 # noctalia-appmenu-bridge companion process, shown in the bar. Works on
-# niri and Umbriel.
+# niri, Umbriel and Hyprland.
 #
 # service -> the only entry that talks to the bridge: starts it with
 #            `noctalia-appmenu-bridge --stream`, restarts it if it exits,
@@ -21,9 +21,9 @@ plugin_api = 42
 author = "goglioandrea"
 license = "Apache-2.0"
 icon = "menu-2"
-tags = ["bar", "panel", "menu", "niri", "umbriel"]
+tags = ["bar", "panel", "menu", "niri", "umbriel", "hyprland"]
 dependencies = ["noctalia-appmenu-bridge"]
-description = "Global application menu in the bar (macOS/KDE style) for niri and Umbriel."
+description = "Global application menu in the bar (macOS/KDE style) for niri, Umbriel and Hyprland."
 
 # Plugin-level settings: the service needs them, so they live at the root.
 [[setting]]

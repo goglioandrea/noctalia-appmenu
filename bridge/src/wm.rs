@@ -43,6 +43,8 @@ pub enum Compositor {
     Niri,
     /// Umbriel (`$UMBRIEL_SOCKET` or the XDG runtime fallback).
     Umbriel,
+    /// Hyprland (`$HYPRLAND_INSTANCE_SIGNATURE`).
+    Hyprland,
 }
 
 impl Compositor {
@@ -53,12 +55,13 @@ impl Compositor {
         match self {
             Self::Niri => "niri",
             Self::Umbriel => "umbriel",
+            Self::Hyprland => "hyprland",
         }
     }
 }
 
-/// Environment variable that forces the compositor choice (`niri` or
-/// `umbriel`). Useful when both sockets exist, e.g. a nested session.
+/// Environment variable that forces the compositor choice (`niri`,
+/// `umbriel` or `hyprland`). Useful when both sockets exist, e.g. a nested session.
 pub const COMPOSITOR_OVERRIDE_ENV: &str = "NOCTALIA_APPMENU_COMPOSITOR";
 
 /// The compositor chosen at daemon start. Read by the menu builders so
@@ -79,13 +82,14 @@ pub fn active() -> Option<Compositor> {
 }
 
 /// Pure detection rule, split out for tests. `override_value` is the
-/// `NOCTALIA_APPMENU_COMPOSITOR` value; the two booleans say whether a
-/// usable socket exists for each compositor.
+/// `NOCTALIA_APPMENU_COMPOSITOR` value; the booleans say whether a usable
+/// socket exists for each compositor.
 #[must_use]
 pub fn choose(
     override_value: Option<&str>,
     niri_available: bool,
     umbriel_available: bool,
+    hyprland_available: bool,
 ) -> Option<Compositor> {
     match override_value
         .map(str::trim)
@@ -94,12 +98,15 @@ pub fn choose(
     {
         Some("niri") => return Some(Compositor::Niri),
         Some("umbriel") => return Some(Compositor::Umbriel),
+        Some("hyprland") => return Some(Compositor::Hyprland),
         _ => {}
     }
     if umbriel_available {
         Some(Compositor::Umbriel)
     } else if niri_available {
         Some(Compositor::Niri)
+    } else if hyprland_available {
+        Some(Compositor::Hyprland)
     } else {
         None
     }
@@ -113,7 +120,13 @@ pub fn detect() -> Option<Compositor> {
         .map(PathBuf::from)
         .is_some_and(|p| p.exists());
     let umbriel_available = umbriel_socket_path().is_some_and(|p| p.exists());
-    choose(override_value.as_deref(), niri_available, umbriel_available)
+    let hyprland_available = crate::hyprland::command_socket().is_some();
+    choose(
+        override_value.as_deref(),
+        niri_available,
+        umbriel_available,
+        hyprland_available,
+    )
 }
 
 /// Umbriel's IPC socket: `$UMBRIEL_SOCKET`, else
@@ -187,6 +200,7 @@ pub fn supports_action(compositor: Compositor, niri_action: &str) -> bool {
     match compositor {
         Compositor::Niri => true,
         Compositor::Umbriel => umbriel_action_for(niri_action).is_some(),
+        Compositor::Hyprland => crate::hyprland::commands_for(niri_action, None).is_some(),
     }
 }
 
@@ -259,6 +273,7 @@ pub async fn focus_window(compositor: Compositor, window: &str) -> Result<()> {
             }))
             .await
         }
+        Compositor::Hyprland => crate::hyprland::focus_window(window).await,
     }
 }
 
@@ -288,6 +303,7 @@ pub async fn window_action(
             }
             umbriel_action(req).await
         }
+        Compositor::Hyprland => crate::hyprland::window_action(niri_action, window).await,
     }
 }
 
@@ -398,19 +414,27 @@ mod tests {
 
     #[test]
     fn override_wins_over_sockets() {
-        assert_eq!(choose(Some("niri"), false, true), Some(Compositor::Niri));
         assert_eq!(
-            choose(Some(" UMBRIEL "), true, false),
+            choose(Some("niri"), false, true, false),
+            Some(Compositor::Niri)
+        );
+        assert_eq!(
+            choose(Some(" UMBRIEL "), true, false, false),
             Some(Compositor::Umbriel)
+        );
+        assert_eq!(
+            choose(Some("hyprland"), true, false, false),
+            Some(Compositor::Hyprland)
         );
     }
 
     #[test]
     fn detects_from_available_sockets() {
-        assert_eq!(choose(None, true, false), Some(Compositor::Niri));
-        assert_eq!(choose(None, false, true), Some(Compositor::Umbriel));
-        assert_eq!(choose(Some("sway"), false, false), None);
-        assert_eq!(choose(None, false, false), None);
+        assert_eq!(choose(None, true, false, false), Some(Compositor::Niri));
+        assert_eq!(choose(None, false, true, false), Some(Compositor::Umbriel));
+        assert_eq!(choose(None, false, false, true), Some(Compositor::Hyprland));
+        assert_eq!(choose(Some("sway"), false, false, false), None);
+        assert_eq!(choose(None, false, false, false), None);
     }
 
     #[test]

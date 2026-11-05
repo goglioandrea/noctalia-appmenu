@@ -22,6 +22,7 @@ pub mod atspi;
 pub mod config;
 pub mod desktop;
 pub mod focus;
+pub mod hyprland;
 pub mod niri;
 pub mod proxy;
 pub mod publish;

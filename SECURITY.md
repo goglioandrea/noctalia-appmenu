@@ -39,6 +39,11 @@ local users.
 | 6 | The upstream push path spawned `qs` (resolved through `PATH`) synchronously on every change. | Info | Removed; updates go to stdout. |
 | 7 | `.claude/settings.json` pre-approved broad shell commands (`gh:*`, `nixos-rebuild:*`, `systemctl --user:*`, …) for any AI agent opened in the repo. | Info | Trimmed to read-only and build/test commands. |
 
+Hyprland (added later) follows the same rules: its window actions come from a fixed
+translation table (`hyprland::commands_for`), and every window address is validated as
+plain hex (`hyprland::parse_address`) before it is interpolated into a `dispatch`
+command, so a crafted id cannot smuggle in another dispatcher (such as `exec`).
+
 The plugin side adds defence in depth: the service validates every service/path/window
 before it goes on the bridge's command line, passes them as an argv array (no shell)
 after `--`, and reads only the bridge's own `…/noctalia-appmenu/active.json`.

@@ -14,7 +14,7 @@
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use noctalia_appmenu_bridge::focus::FocusSink;
-use noctalia_appmenu_bridge::{active, atspi, config, niri, proxy, publish, umbriel, wm};
+use noctalia_appmenu_bridge::{active, atspi, config, hyprland, niri, proxy, publish, umbriel, wm};
 use tracing::{info, warn};
 
 #[derive(Parser, Debug)]
@@ -156,9 +156,10 @@ async fn main() -> Result<()> {
     init_tracing(cli.foreground);
 
     let compositor = wm::detect().context(
-        "no supported compositor found: neither niri ($NIRI_SOCKET) nor Umbriel \
-         ($UMBRIEL_SOCKET or $XDG_RUNTIME_DIR/umbriel-$WAYLAND_DISPLAY.sock) is reachable; \
-         set NOCTALIA_APPMENU_COMPOSITOR=niri|umbriel to force one",
+        "no supported compositor found: none of niri ($NIRI_SOCKET), Umbriel \
+         ($UMBRIEL_SOCKET or $XDG_RUNTIME_DIR/umbriel-$WAYLAND_DISPLAY.sock) or Hyprland \
+         ($HYPRLAND_INSTANCE_SIGNATURE) is reachable; \
+         set NOCTALIA_APPMENU_COMPOSITOR=niri|umbriel|hyprland to force one",
     )?;
     wm::set_active(compositor);
     info!(compositor = compositor.as_str(), "compositor detected");
@@ -203,6 +204,9 @@ async fn main() -> Result<()> {
         wm::Compositor::Niri => tokio::spawn(niri::NiriFocusSink::new().run(focus_tx, cfg.clone())),
         wm::Compositor::Umbriel => {
             tokio::spawn(umbriel::UmbrielFocusSink::new().run(focus_tx, cfg.clone()))
+        }
+        wm::Compositor::Hyprland => {
+            tokio::spawn(hyprland::HyprlandFocusSink::new().run(focus_tx, cfg.clone()))
         }
     };
     let active_task = tokio::spawn(active::run(focus_rx, active_tx, cfg.clone()));
