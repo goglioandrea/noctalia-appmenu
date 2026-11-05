@@ -175,6 +175,19 @@ fn write_active_json(
     crate::publish::announce_active(&body, path);
 }
 
+/// Key for the learned no-menubar verdict (ADR-0029): app id **and**
+/// process id.
+///
+/// Upstream keyed it on the app id alone, so a verdict learned on one
+/// process applied to every later process of the same app. In practice: a
+/// Konsole started before accessibility was on (not on the AT-SPI bus)
+/// taught "org.kde.konsole has no menubar", and a freshly restarted Konsole
+/// that *does* expose its full menubar was then skipped for up to 30
+/// minutes. A new process is a new chance; it is walked at least once.
+fn skip_key(snap: &ActiveSnapshot) -> String {
+    format!("{}#{}", snap.app_id, snap.focus_pid)
+}
+
 /// Plain-old-data view of the four properties exported on the active
 /// proxy interface. Updated atomically as a unit (all four properties
 /// always change together when focus moves), so a `Mutex` is the right
@@ -362,7 +375,7 @@ pub async fn run(
         // would publish a transient lie before the real provenance lands.
         let eager_skip_fallback = snapshot.focus_pid != 0
             && cfg.desktop_fallback
-            && atspi::should_skip_walk(&snapshot.app_id);
+            && atspi::should_skip_walk(&skip_key(&snapshot));
         let eager_fallback = eager_skip_fallback
             .then(|| crate::desktop::fallback_menu(&snapshot.app_id))
             .flatten();
@@ -400,7 +413,7 @@ pub async fn run(
         //    nothing.
         let menu: Option<atspi::MenuItem> = if snapshot.focus_pid == 0 {
             None
-        } else if atspi::should_skip_walk(&snapshot.app_id) {
+        } else if atspi::should_skip_walk(&skip_key(&snapshot)) {
             debug!(
                 app_id = %snapshot.app_id,
                 pid = snapshot.focus_pid,
@@ -450,9 +463,9 @@ pub async fn run(
                         opt.clone(),
                     );
                     if opt.is_some() {
-                        atspi::forget_menubar(&snapshot.app_id);
+                        atspi::forget_menubar(&skip_key(&snapshot));
                     } else {
-                        atspi::record_negative_walk(&snapshot.app_id, walk_elapsed);
+                        atspi::record_negative_walk(&skip_key(&snapshot), walk_elapsed);
                     }
                     opt
                 }
@@ -628,5 +641,22 @@ mod lazy_unreadable_tests {
         // (desktop fallback via the None branch), not lazy-unreadable.
         let menu = item("Application", vec![]);
         assert!(!is_lazy_unreadable(&menu));
+    }
+}
+
+#[cfg(test)]
+mod skip_key_tests {
+    use super::skip_key;
+    use crate::active::ActiveSnapshot;
+
+    #[test]
+    fn skip_key_separates_processes_of_the_same_app() {
+        let mut a = ActiveSnapshot::empty();
+        a.app_id = "org.kde.konsole".into();
+        a.focus_pid = 29513;
+        let mut b = a.clone();
+        b.focus_pid = 31341;
+        assert_ne!(skip_key(&a), skip_key(&b));
+        assert_eq!(skip_key(&a), skip_key(&a.clone()));
     }
 }
