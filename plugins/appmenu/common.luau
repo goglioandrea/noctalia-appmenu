@@ -14,6 +14,33 @@ local M = {}
 M.SYNTHETIC_SERVICE = "::synthetic"
 M.PANEL_ID = "goglioandrea/appmenu:menu"
 
+-- Fully transparent fill. Passing this (instead of dropping `fill`) matters:
+-- the host keeps a container's previous fill when the prop disappears.
+M.TRANSPARENT = "#00000000"
+
+-- Fixed-width gap. A bare ui.box paints black, so give it a clear fill.
+function M.spacer(width, height)
+  return ui.box({ width = width, height = height or 1, fill = M.TRANSPARENT })
+end
+
+-- Integer setting clamped to [min, max], or `default` when unset.
+function M.intSetting(key, default, min, max)
+  local v = tonumber(noctalia.getConfig(key))
+  if v == nil then
+    return default
+  end
+  return math.clamp(math.floor(v), min, max)
+end
+
+-- A colour setting left empty means "use the default colour".
+function M.colorSetting(key)
+  local v = noctalia.getConfig(key)
+  if type(v) == "string" and noctalia.string.trim(v) ~= "" then
+    return v
+  end
+  return nil
+end
+
 -- A unique-enough token so two identical requests in a row still count as a
 -- change for noctalia.state watchers.
 local counter = 0

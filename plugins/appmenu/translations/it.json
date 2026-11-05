@@ -14,6 +14,14 @@
     "previous_menu": "Menu precedente"
   },
   "settings": {
+    "app_name_color": {
+      "description": "Vuoto: come il testo del widget.",
+      "label": "Colore del nome dell'applicazione"
+    },
+    "app_name_spacing": {
+      "description": "Pixel tra il nome dell'applicazione e il primo titolo di menu.",
+      "label": "Spazio dopo il nome dell'applicazione"
+    },
     "bridge_path": {
       "description": "Comando o percorso assoluto di noctalia-appmenu-bridge.",
       "label": "Comando del bridge"
@@ -21,6 +29,22 @@
     "hide_when_empty": {
       "description": "Non occupare spazio nella barra quando nessuna applicazione è attiva.",
       "label": "Nascondi se vuoto"
+    },
+    "item_hover_highlight": {
+      "description": "Disegna uno sfondo dietro la voce sotto il puntatore.",
+      "label": "Evidenzia la voce al passaggio del mouse"
+    },
+    "item_padding": {
+      "description": "Margine verticale di ogni voce, in pixel.",
+      "label": "Margine delle voci"
+    },
+    "item_spacing": {
+      "description": "Pixel tra una voce e l'altra.",
+      "label": "Spazio tra le voci"
+    },
+    "item_text_color": {
+      "description": "Colore del testo delle voci di menu. Vuoto: colore del tema.",
+      "label": "Colore delle voci"
     },
     "max_menus": {
       "description": "Numero massimo di menu mostrati nella barra.",
@@ -30,9 +54,42 @@
       "description": "I titoli più lunghi vengono accorciati con i puntini.",
       "label": "Lunghezza massima dei titoli"
     },
+    "menu_highlight": {
+      "description": "Quando disegnare uno sfondo dietro un titolo di menu.",
+      "label": "Sfondo dei titoli",
+      "options": {
+        "hover": "Al passaggio del mouse e quando è aperto",
+        "never": "Mai",
+        "open": "Solo quando il menu è aperto"
+      }
+    },
+    "menu_padding": {
+      "description": "Margine orizzontale dentro ogni titolo, in pixel. Determina anche la larghezza del suo sfondo.",
+      "label": "Margine interno dei titoli"
+    },
+    "menu_selected_text_color": {
+      "description": "Colore del titolo il cui menu è aperto. Vuoto: invariato.",
+      "label": "Colore del titolo del menu aperto"
+    },
+    "menu_spacing": {
+      "description": "Pixel aggiuntivi tra i titoli dei menu, oltre al loro margine interno.",
+      "label": "Spazio tra i menu"
+    },
+    "menu_text_color": {
+      "description": "Colore del testo dei titoli dei menu. Vuoto: come il testo del widget.",
+      "label": "Colore dei titoli dei menu"
+    },
     "show_app_name": {
       "description": "Mostra il nome dell'applicazione attiva prima dei suoi menu.",
       "label": "Mostra il nome dell'applicazione"
+    },
+    "show_menu_arrows": {
+      "description": "Frecce in cima al pannello per passare al menu precedente/successivo.",
+      "label": "Mostra le frecce tra i menu"
+    },
+    "show_menu_title": {
+      "description": "Ripete il nome del menu aperto in cima al pannello.",
+      "label": "Mostra il nome del menu"
     }
   },
   "status": {

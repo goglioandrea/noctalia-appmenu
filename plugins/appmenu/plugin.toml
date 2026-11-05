@@ -14,7 +14,7 @@
 
 id = "goglioandrea/appmenu"
 name = "AppMenu"
-version = "2.0.0"
+version = "2.1.0"
 # 42: height = "content" panels. Covers runAsync argv (24), getColor (31),
 # container tooltips (32) and hover_highlight (34). Noctalia v5.4.1 supports 3..43.
 plugin_api = 42
@@ -66,6 +66,67 @@ hover_highlight = false
   max = 80
 
   [[widget.setting]]
+  key = "menu_text_color"
+  type = "color"
+  label_key = "settings.menu_text_color.label"
+  description_key = "settings.menu_text_color.description"
+  default = ""
+
+  [[widget.setting]]
+  key = "menu_selected_text_color"
+  type = "color"
+  label_key = "settings.menu_selected_text_color.label"
+  description_key = "settings.menu_selected_text_color.description"
+  default = ""
+
+  [[widget.setting]]
+  key = "app_name_color"
+  type = "color"
+  label_key = "settings.app_name_color.label"
+  description_key = "settings.app_name_color.description"
+  default = ""
+  visible_when = { key = "show_app_name", values = ["true"] }
+
+  [[widget.setting]]
+  key = "menu_highlight"
+  type = "select"
+  label_key = "settings.menu_highlight.label"
+  description_key = "settings.menu_highlight.description"
+  default = "open"
+  options = [
+    { value = "open", label_key = "settings.menu_highlight.options.open" },
+    { value = "hover", label_key = "settings.menu_highlight.options.hover" },
+    { value = "never", label_key = "settings.menu_highlight.options.never" },
+  ]
+
+  [[widget.setting]]
+  key = "app_name_spacing"
+  type = "int"
+  label_key = "settings.app_name_spacing.label"
+  description_key = "settings.app_name_spacing.description"
+  default = 6
+  min = 0
+  max = 48
+
+  [[widget.setting]]
+  key = "menu_spacing"
+  type = "int"
+  label_key = "settings.menu_spacing.label"
+  description_key = "settings.menu_spacing.description"
+  default = 0
+  min = 0
+  max = 48
+
+  [[widget.setting]]
+  key = "menu_padding"
+  type = "int"
+  label_key = "settings.menu_padding.label"
+  description_key = "settings.menu_padding.description"
+  default = 6
+  min = 0
+  max = 24
+
+  [[widget.setting]]
   key = "hide_when_empty"
   type = "bool"
   label_key = "settings.hide_when_empty.label"
@@ -82,6 +143,54 @@ placement = "attached"
 position = "auto"
 open_near_click = true
 dismiss_on_outside_click = true
+
+  # Shown under Settings -> Plugins -> AppMenu (gear), with the host's own
+  # placement / position / open-near-click options.
+  [[panel.setting]]
+  key = "show_menu_title"
+  type = "bool"
+  label_key = "settings.show_menu_title.label"
+  description_key = "settings.show_menu_title.description"
+  default = false
+
+  [[panel.setting]]
+  key = "show_menu_arrows"
+  type = "bool"
+  label_key = "settings.show_menu_arrows.label"
+  description_key = "settings.show_menu_arrows.description"
+  default = false
+
+  [[panel.setting]]
+  key = "item_text_color"
+  type = "color"
+  label_key = "settings.item_text_color.label"
+  description_key = "settings.item_text_color.description"
+  default = ""
+
+  [[panel.setting]]
+  key = "item_hover_highlight"
+  type = "bool"
+  label_key = "settings.item_hover_highlight.label"
+  description_key = "settings.item_hover_highlight.description"
+  default = true
+
+  [[panel.setting]]
+  key = "item_padding"
+  type = "int"
+  label_key = "settings.item_padding.label"
+  description_key = "settings.item_padding.description"
+  default = 6
+  min = 0
+  max = 24
+
+  [[panel.setting]]
+  key = "item_spacing"
+  type = "int"
+  label_key = "settings.item_spacing.label"
+  description_key = "settings.item_spacing.description"
+  default = 1
+  min = 0
+  max = 24
 
 [[service]]
 id = "service"

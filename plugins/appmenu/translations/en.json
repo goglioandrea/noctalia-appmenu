@@ -14,6 +14,14 @@
     "previous_menu": "Previous menu"
   },
   "settings": {
+    "app_name_color": {
+      "description": "Empty: same as the widget text.",
+      "label": "Application name color"
+    },
+    "app_name_spacing": {
+      "description": "Pixels between the application name and the first menu title.",
+      "label": "Space after application name"
+    },
     "bridge_path": {
       "description": "Command or absolute path of noctalia-appmenu-bridge.",
       "label": "Bridge command"
@@ -21,6 +29,22 @@
     "hide_when_empty": {
       "description": "Take no bar space while no application is focused.",
       "label": "Hide when empty"
+    },
+    "item_hover_highlight": {
+      "description": "Draw a background behind the item under the pointer.",
+      "label": "Highlight item on hover"
+    },
+    "item_padding": {
+      "description": "Vertical padding of each menu item, in pixels.",
+      "label": "Item padding"
+    },
+    "item_spacing": {
+      "description": "Pixels between menu items.",
+      "label": "Item spacing"
+    },
+    "item_text_color": {
+      "description": "Text color of the menu items. Empty: theme default.",
+      "label": "Item text color"
     },
     "max_menus": {
       "description": "Most top-level menus shown in the bar.",
@@ -30,9 +54,42 @@
       "description": "Longer menu titles are shortened with an ellipsis.",
       "label": "Maximum title length"
     },
+    "menu_highlight": {
+      "description": "When a background is drawn behind a menu title.",
+      "label": "Title background",
+      "options": {
+        "hover": "On hover and while open",
+        "never": "Never",
+        "open": "Only while its menu is open"
+      }
+    },
+    "menu_padding": {
+      "description": "Horizontal padding inside each title, in pixels. Also sizes its background.",
+      "label": "Menu title padding"
+    },
+    "menu_selected_text_color": {
+      "description": "Text color of the title whose menu is open. Empty: unchanged.",
+      "label": "Open menu title color"
+    },
+    "menu_spacing": {
+      "description": "Extra pixels between menu titles, on top of their padding.",
+      "label": "Space between menus"
+    },
+    "menu_text_color": {
+      "description": "Text color of the menu titles. Empty: same as the widget text.",
+      "label": "Menu title color"
+    },
     "show_app_name": {
       "description": "Show the focused application's name before its menus.",
       "label": "Show application name"
+    },
+    "show_menu_arrows": {
+      "description": "Arrows at the top of the panel to step to the previous/next menu.",
+      "label": "Show menu arrows"
+    },
+    "show_menu_title": {
+      "description": "Repeat the open menu's name at the top of the panel.",
+      "label": "Show menu name"
     }
   },
   "status": {

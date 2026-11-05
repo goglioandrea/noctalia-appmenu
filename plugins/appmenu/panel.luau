@@ -130,6 +130,9 @@ local function activate(item, index)
   panel.close()
 end
 
+-- Check/radio column. Only drawn when the menu has toggle items at all, so
+-- plain menus get no empty gutter. An unchecked toggle keeps the slot with
+-- a transparent spacer (a bare ui.box would paint black).
 local function indicator(item)
   local checked = tonumber(item.toggle_state) == 1
   if item.toggle_type == "checkmark" and checked then
@@ -137,37 +140,55 @@ local function indicator(item)
   elseif item.toggle_type == "radio" and checked then
     return ui.glyph({ name = "circle-dot", size = 14, color = "primary" })
   end
-  return ui.box({ width = 14, height = 14 })
+  return common.spacer(14, 14)
 end
 
-local function itemRow(item, index)
+local function hasToggles(items)
+  for _, item in ipairs(items) do
+    if type(item) == "table" and (item.toggle_type == "checkmark" or item.toggle_type == "radio") then
+      return true
+    end
+  end
+  return false
+end
+
+local function itemRow(item, index, opts)
   local key = `item-{index}`
   local enabled = item.enabled ~= false
-  local children = {
-    indicator(item),
-    ui.label({
-      text = common.cleanLabel(item.label),
-      flexGrow = 1,
-      maxLines = 1,
-      color = enabled and "on_surface" or "on_surface_variant",
-    }),
-  }
+  local children = {}
+  if opts.toggles then
+    table.insert(children, indicator(item))
+  end
+  table.insert(children, ui.label({
+    text = common.cleanLabel(item.label),
+    flexGrow = 1,
+    maxLines = 1,
+    color = opts.color,
+  }))
   if common.isSubmenu(item) then
-    table.insert(children, ui.glyph({ name = "chevron-right", size = 14, color = "on_surface_variant" }))
+    table.insert(children, ui.glyph({ name = "chevron-right", size = 14, color = opts.chevronColor }))
+  end
+  -- Always pass a fill: a dropped `fill` prop keeps the previous one.
+  local fill = common.TRANSPARENT
+  if opts.hover and enabled and hoveredKey == key then
+    fill = "on_surface/0.08"
   end
   return ui.row({
     key = key,
     gap = 8,
     paddingH = 10,
-    paddingV = 6,
+    paddingV = opts.paddingV,
     radius = 6,
     align = "center",
     opacity = enabled and 1 or 0.5,
-    fill = (enabled and hoveredKey == key) and "on_surface/0.08" or nil,
+    fill = fill,
     onClick = enabled and function()
       activate(item, index)
     end or nil,
     onHover = function(state)
+      if not opts.hover then
+        return
+      end
       local target = hoveredKey
       if state == "true" then
         target = key
@@ -204,54 +225,59 @@ local function stepMenu(delta)
   end
 end
 
+local function navButton(glyph, tooltipKey, onClick)
+  return ui.button({
+    glyph = glyph,
+    variant = "ghost",
+    controlSize = "sm",
+    tooltip = tr(tooltipKey),
+    onClick = onClick,
+  })
+end
+
+-- Header, or nil when there is nothing to show. Inside a submenu it is the
+-- back button + submenu name (needed to navigate). At the top level the
+-- menu name repeats the highlighted bar title and the arrows duplicate the
+-- bar, so both are opt-in.
 local function header(node)
-  local left
+  local title = ui.label({
+    text = common.cleanLabel(node.label),
+    fontWeight = "bold",
+    flexGrow = 1,
+    maxLines = 1,
+    color = common.colorSetting("item_text_color"),
+  })
   if #stack > 0 then
-    left = ui.button({
-      glyph = "chevron-left",
-      variant = "ghost",
-      controlSize = "sm",
-      tooltip = tr("panel.back"),
-      onClick = function()
+    return ui.row({ gap = 4, align = "center" }, {
+      navButton("chevron-left", "panel.back", function()
         table.remove(stack)
         hoveredKey = nil
         render()
-      end,
-    })
-  else
-    left = ui.button({
-      glyph = "chevron-left",
-      variant = "ghost",
-      controlSize = "sm",
-      tooltip = tr("panel.previous_menu"),
-      onClick = function()
-        stepMenu(-1)
-      end,
+      end),
+      title,
     })
   end
-  local items = {
-    left,
-    ui.label({
-      text = common.cleanLabel(node.label),
-      fontWeight = "bold",
-      flexGrow = 1,
-      maxLines = 1,
-      textAlign = "center",
-    }),
-  }
-  if #stack == 0 then
-    table.insert(items, ui.button({
-      glyph = "chevron-right",
-      variant = "ghost",
-      controlSize = "sm",
-      tooltip = tr("panel.next_menu"),
-      onClick = function()
-        stepMenu(1)
-      end,
-    }))
+  local showArrows = noctalia.getConfig("show_menu_arrows") == true
+  local showTitle = noctalia.getConfig("show_menu_title") == true
+  if not showArrows and not showTitle then
+    return nil
+  end
+  local items = {}
+  if showArrows then
+    table.insert(items, navButton("chevron-left", "panel.previous_menu", function()
+      stepMenu(-1)
+    end))
+  end
+  if showTitle then
+    title.props.textAlign = showArrows and "center" or "start"
+    table.insert(items, title)
   else
-    -- Keep the title centred.
-    table.insert(items, ui.box({ width = 32, height = 1 }))
+    table.insert(items, ui.spacer({ flexGrow = 1 }))
+  end
+  if showArrows then
+    table.insert(items, navButton("chevron-right", "panel.next_menu", function()
+      stepMenu(1)
+    end))
   end
   return ui.row({ gap = 4, align = "center" }, items)
 end
@@ -292,6 +318,13 @@ render = function()
       table.insert(rows, messageRow("list", tr("panel.empty")))
     end
   end
+  local opts = {
+    toggles = hasToggles(kids),
+    color = common.colorSetting("item_text_color"),
+    chevronColor = common.colorSetting("item_text_color") or "on_surface_variant",
+    paddingV = common.intSetting("item_padding", 6, 0, 24),
+    hover = noctalia.getConfig("item_hover_highlight") ~= false,
+  }
   local lastWasSeparator = true
   for index, item in ipairs(kids) do
     if common.isSeparator(item) then
@@ -300,7 +333,7 @@ render = function()
         lastWasSeparator = true
       end
     elseif item.visible ~= false and common.cleanLabel(item.label) ~= "" then
-      table.insert(rows, itemRow(item, index))
+      table.insert(rows, itemRow(item, index, opts))
       lastWasSeparator = false
     end
   end
@@ -308,11 +341,14 @@ render = function()
     table.remove(rows)
   end
 
-  panel.render(ui.column({ gap = 6, padding = 6, flexGrow = 1 }, {
-    header(node),
-    ui.separator({}),
-    ui.scroll({ flexGrow = 1, gap = 1 }, rows),
-  }))
+  local body = {}
+  local head = header(node)
+  if head ~= nil then
+    table.insert(body, head)
+    table.insert(body, ui.separator({}))
+  end
+  table.insert(body, ui.scroll({ flexGrow = 1, gap = common.intSetting("item_spacing", 1, 0, 24) }, rows))
+  panel.render(ui.column({ gap = 6, padding = 6, flexGrow = 1 }, body))
 end
 
 local function showMenu(index)

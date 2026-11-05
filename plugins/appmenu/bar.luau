@@ -74,20 +74,39 @@ end
 
 local render
 
-local function titleButton(menu, maxChars)
+local intSetting = common.intSetting
+local colorSetting = common.colorSetting
+
+local function titleButton(menu, opts)
   local selected = panelOpen and openIndex == menu.index
   local isHovered = hovered == menu.index
+  local showFill = (opts.highlight == "open" and selected)
+    or (opts.highlight == "hover" and (selected or isHovered))
+  -- Always pass a fill: the host keeps the previous one when the prop is
+  -- dropped, which left highlights stuck behind every title once hovered.
+  local fill = common.TRANSPARENT
+  if showFill then
+    fill = selected and "primary/0.22" or "on_surface/0.08"
+  end
+  local color = opts.color
+  if selected and opts.highlight ~= "never" and opts.selectedColor ~= nil then
+    color = opts.selectedColor
+  end
   return ui.row({
     key = `menu-{menu.index}`,
-    paddingH = 7,
+    paddingH = opts.padding,
     paddingV = 2,
     radius = 6,
     align = "center",
-    fill = selected and "primary/0.22" or (isHovered and "on_surface/0.08" or nil),
+    fill = fill,
+    opacity = menu.enabled and 1 or 0.5,
     onClick = function()
       openMenu(menu.index)
     end,
     onHover = function(state)
+      if opts.highlight ~= "hover" then
+        return
+      end
       local target = hovered
       if state == "true" then
         target = menu.index
@@ -101,8 +120,9 @@ local function titleButton(menu, maxChars)
     end,
   }, {
     ui.label({
-      text = common.ellipsize(menu.label, maxChars),
-      color = menu.enabled and (selected and "primary" or nil) or "on_surface_variant",
+      text = common.ellipsize(menu.label, opts.maxChars),
+      color = color,
+      fontWeight = menu.bold and "bold" or nil,
     }),
   })
 end
@@ -129,26 +149,56 @@ render = function()
     return
   end
 
+  local opts = {
+    maxChars = intSetting("max_title_chars", 24, 4, 80),
+    padding = intSetting("menu_padding", 6, 0, 24),
+    highlight = noctalia.getConfig("menu_highlight") or "open",
+    color = colorSetting("menu_text_color"),
+    selectedColor = colorSetting("menu_selected_text_color"),
+  }
+  local appGap = intSetting("app_name_spacing", 6, 0, 48)
+  local menuGap = intSetting("menu_spacing", 0, 0, 48)
+
   local children = {}
+  local function spacer(width)
+    if width > 0 then
+      table.insert(children, common.spacer(width))
+    end
+  end
+
   if status.state == "missing" or (status.state == "error" and active == nil) then
     table.insert(children, ui.glyph({ name = "alert-triangle", color = "error" }))
+    spacer(appGap)
   end
 
   local name = appName()
-  if noctalia.getConfig("show_app_name") ~= false and name ~= "" then
+  local showName = noctalia.getConfig("show_app_name") ~= false and name ~= ""
+  -- Fallback menus open with a menu named after the app: show that one as
+  -- the bold app name instead of printing the name twice.
+  if showName and #menus > 0 and menus[1].label == name then
+    menus[1].bold = true
+    showName = false
+  end
+  if showName then
     table.insert(children, ui.label({
       text = common.ellipsize(name, 28),
       fontWeight = "bold",
+      color = colorSetting("app_name_color"),
     }))
+    -- The titles carry their own horizontal padding; subtract it so the
+    -- setting is the visible gap between the name and the first title.
+    spacer(math.max(0, appGap - opts.padding))
   end
 
-  local maxMenus = tonumber(noctalia.getConfig("max_menus")) or 12
-  local maxChars = tonumber(noctalia.getConfig("max_title_chars")) or 24
+  local maxMenus = intSetting("max_menus", 12, 1, 30)
   for i, menu in ipairs(menus) do
     if i > maxMenus then
       break
     end
-    table.insert(children, titleButton(menu, maxChars))
+    if i > 1 then
+      spacer(menuGap)
+    end
+    table.insert(children, titleButton(menu, opts))
   end
 
   if #children == 0 then
@@ -156,7 +206,7 @@ render = function()
     table.insert(children, ui.glyph({ name = "menu-2", color = "on_surface_variant" }))
   end
 
-  barWidget.render(ui.row({ gap = 2, align = "center" }, children))
+  barWidget.render(ui.row({ gap = 0, align = "center" }, children))
 end
 
 -- Clicks on the capsule outside a title (app name, padding) open the first
