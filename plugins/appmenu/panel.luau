@@ -109,6 +109,11 @@ end
 
 local render
 
+-- Rough row text height and the point past which the items scroll. The
+-- panel's max_height is 560 in plugin.toml; the host keeps its own padding.
+local ROW_TEXT_PX = 20
+local SCROLL_THRESHOLD_PX = 500
+
 local function activate(item, index)
   if item.enabled == false then
     return
@@ -351,11 +356,26 @@ render = function()
     table.insert(body, head)
     table.insert(body, ui.separator({}))
   end
-  table.insert(body, ui.scroll({ flexGrow = 1, gap = common.intSetting("item_spacing", 0, 0, 24) }, rows))
+  -- A ui.scroll keeps the height it was last laid out at, so the host's
+  -- content measurement (height = "content") reads back the panel maximum
+  -- and the panel never shrinks. Only scroll when the menu cannot fit;
+  -- otherwise lay the rows out in a plain column, which measures its rows.
+  local gap = common.intSetting("item_spacing", 0, 0, 24)
+  local paddingV = common.intSetting("item_padding", 3, 0, 24)
+  local estimated = 0
+  for _, row in ipairs(rows) do
+    estimated += (row.type == "separator" and 9 or (ROW_TEXT_PX + 2 * paddingV)) + gap
+  end
+  local needsScroll = estimated + (head ~= nil and 48 or 0) > SCROLL_THRESHOLD_PX
+  if needsScroll then
+    table.insert(body, ui.scroll({ key = "items-scroll", flexGrow = 1, gap = gap }, rows))
+  else
+    table.insert(body, ui.column({ key = "items", gap = gap }, rows))
+  end
   panel.render(ui.column({
     gap = 4,
     padding = common.intSetting("panel_padding", 0, 0, 32),
-    flexGrow = 1,
+    flexGrow = needsScroll and 1 or 0,
   }, body))
 end
 
