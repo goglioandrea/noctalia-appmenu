@@ -1,0 +1,23 @@
+_instructions() {
+  cat <<'EOF'
+==> noctalia-appmenu: to activate the plugin, run once as your user:
+
+      noctalia msg plugins source add appmenu path /usr/share/noctalia-appmenu/plugins
+      noctalia msg plugins enable goglioandrea/appmenu
+
+    then add the "AppMenu" widget to your bar (Settings -> Bar).
+    The plugin starts noctalia-appmenu-bridge by itself; no service to enable.
+
+    Qt apps started before the bridge may need a restart to expose their
+    menus. Firefox needs accessibility enabled (about:config:
+    accessibility.force_disabled = 0).
+EOF
+}
+
+post_install() {
+  _instructions
+}
+
+post_upgrade() {
+  echo "==> noctalia-appmenu: run 'noctalia msg plugins update appmenu' to reload the plugin."
+}

@@ -2,37 +2,21 @@
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
     "allow": [
-      "Bash(cargo:*)",
-      "Bash(rustc:*)",
+      "Bash(cargo build:*)",
+      "Bash(cargo test:*)",
+      "Bash(cargo check:*)",
+      "Bash(cargo clippy:*)",
+      "Bash(cargo fmt:*)",
       "Bash(rustfmt:*)",
-      "Bash(clippy:*)",
-      "Bash(qmllint:*)",
-      "Bash(qmlformat:*)",
-      "Bash(nix:*)",
-      "Bash(nixos-rebuild:*)",
-      "Bash(home-manager:*)",
-      "Bash(alejandra:*)",
-      "Bash(deadnix:*)",
-      "Bash(statix:*)",
-      "Bash(just:*)",
-      "Bash(lefthook:*)",
-      "Bash(actionlint:*)",
-      "Bash(zizmor:*)",
-      "Bash(gitleaks:*)",
-      "Bash(commitlint:*)",
-      "Bash(git-cliff:*)",
-      "Bash(busctl:*)",
-      "Bash(gdbus:*)",
-      "Bash(niri msg:*)",
-      "Bash(systemctl --user:*)",
-      "Bash(journalctl --user:*)",
-      "Bash(gh:*)"
+      "Bash(busctl --user list:*)",
+      "Bash(busctl --user introspect:*)",
+      "Bash(niri msg --json:*)",
+      "Bash(umbriel windows:*)",
+      "Bash(umbriel focused-window:*)",
+      "Bash(journalctl --user:*)"
     ]
   },
   "env": {
     "RUST_LOG": "noctalia_appmenu_bridge=debug,zbus=info"
-  },
-  "enabledPlugins": {
-    "claude-mac-chrome@claude-mac-chrome": false
   }
 }

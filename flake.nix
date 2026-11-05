@@ -89,7 +89,7 @@
         plugin = pkgs.stdenvNoCC.mkDerivation {
           pname = "noctalia-appmenu-plugin";
           inherit version;
-          src = ./plugin;
+          src = ./plugins/appmenu;
           dontBuild = true;
           installPhase = ''
             mkdir -p $out/share/noctalia-shell/plugins/noctalia-appmenu

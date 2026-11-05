@@ -1,0 +1,73 @@
+# Maintainer: goglioandrea <goglio.andrea00@gmail.com>
+#
+# Builds noctalia-appmenu-bridge and installs the Noctalia v5 plugin.
+#
+#   cd packaging/arch && makepkg -si
+#
+# To build an unpushed local checkout instead of GitHub:
+#   NOCTALIA_APPMENU_REPO="file://$PWD/../.." makepkg -si
+#
+# After installing, follow the instructions printed by the .install hook
+# (register the plugin source and enable the plugin in Noctalia).
+
+pkgname=noctalia-appmenu-git
+_pkgname=noctalia-appmenu
+pkgver=r0.0000000
+pkgrel=1
+pkgdesc="Global application menu (macOS/KDE style) for Noctalia v5 on niri and Umbriel"
+arch=('x86_64' 'aarch64')
+url="https://github.com/goglioandrea/noctalia-appmenu"
+license=('Apache-2.0')
+depends=('gcc-libs' 'glibc' 'at-spi2-core')
+makedepends=('cargo' 'git')
+optdepends=(
+  'niri: supported compositor'
+  'umbriel: supported compositor'
+)
+provides=('noctalia-appmenu')
+conflicts=('noctalia-appmenu')
+install=noctalia-appmenu.install
+_repo="${NOCTALIA_APPMENU_REPO:-${url}.git}"
+source=("${_pkgname}::git+${_repo}")
+sha256sums=('SKIP')
+
+pkgver() {
+  cd "${_pkgname}"
+  printf "r%s.%s" "$(git rev-list --count HEAD)" "$(git rev-parse --short=7 HEAD)"
+}
+
+prepare() {
+  cd "${_pkgname}/bridge"
+  export RUSTUP_TOOLCHAIN=stable
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+build() {
+  cd "${_pkgname}/bridge"
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  cargo build --frozen --release --bin noctalia-appmenu-bridge
+}
+
+check() {
+  cd "${_pkgname}/bridge"
+  export RUSTUP_TOOLCHAIN=stable
+  export CARGO_TARGET_DIR=target
+  # Unit tests only: the integration suites need a live session bus.
+  cargo test --frozen --lib --bins
+}
+
+package() {
+  cd "${_pkgname}"
+  install -Dm755 bridge/target/release/noctalia-appmenu-bridge \
+    "${pkgdir}/usr/bin/noctalia-appmenu-bridge"
+
+  # Noctalia path source: /usr/share/noctalia-appmenu/plugins/<plugin>/plugin.toml
+  local plugdir="${pkgdir}/usr/share/noctalia-appmenu/plugins/appmenu"
+  install -d "${plugdir}/translations"
+  install -m644 plugins/appmenu/plugin.toml plugins/appmenu/*.luau "${plugdir}/"
+  install -m644 plugins/appmenu/translations/*.json "${plugdir}/translations/"
+
+  install -Dm644 LICENSE "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"
+  install -Dm644 README.md "${pkgdir}/usr/share/doc/${pkgname}/README.md"
+}
