@@ -274,8 +274,25 @@ pub async fn run(
         .at(cfg.publish_path.as_str(), proxy.clone())
         .await?;
 
-    conn.request_name(cfg.publish_service.as_str()).await?;
-    info!(service = %cfg.publish_service, path = %cfg.publish_path, "owning active proxy");
+    // The well-known name only serves `RefreshActive` (a re-walk nudge from
+    // the click subprocess) and legacy D-Bus consumers. The Noctalia v5
+    // plugin reads snapshots from stdout, so a name held by another process
+    // (an upstream systemd bridge, a stale instance) must not kill this one:
+    // it would crash-loop the plugin's service while working perfectly well.
+    match conn.request_name(cfg.publish_service.as_str()).await {
+        Ok(()) => {
+            info!(service = %cfg.publish_service, path = %cfg.publish_path, "owning active proxy");
+        }
+        Err(zbus::Error::NameTaken) => {
+            warn!(
+                service = %cfg.publish_service,
+                "bus name already owned by another process (an old noctalia-appmenu-bridge?); \
+                 continuing without it — find the owner with \
+                 `busctl --user status org.noctalia.AppMenu`"
+            );
+        }
+        Err(e) => return Err(e.into()),
+    }
 
     // File-IPC fallback: write the active snapshot to a JSON file
     // alongside the D-Bus proxy. Quickshell's `DBusObject` does not
