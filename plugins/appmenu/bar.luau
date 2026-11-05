@@ -13,6 +13,8 @@ local status = { state = "starting" }
 local panelOpen = false
 local openIndex = nil
 local openPanel = nil -- entry id of the panel showing openIndex
+local openWidth = nil -- its width step
+local openSlot = nil -- its slot, "a" or "b"
 local hovered = nil
 local expanded = {} -- lazily realised submenus, as the panel sees them
 
@@ -69,14 +71,12 @@ local function widthOf(index)
   return common.estimateMenuWidth(node, childrenOf)
 end
 
--- "stable" (default): one width for every menu of the app, the widest one's.
--- Moving between menus then never swaps panels; a swap closes one panel
--- before opening the next, and in between the compositor hands focus back
--- to the app window, which flashes. "per_menu": each menu gets its own
--- fitted width, at the cost of that flash when the width changes.
-local function panelFor(index)
+-- Width step for `index`'s menu. "stable" (default): the app's widest menu,
+-- so the panel keeps one size while you move along the bar. "per_menu":
+-- fitted to each menu.
+local function widthFor(index)
   if noctalia.getConfig("panel_width_mode") == "per_menu" then
-    return common.panelForWidth(widthOf(index))
+    return common.widthStep(widthOf(index))
   end
   local widest = widthOf(index)
   if active ~= nil and active.menu ~= nil then
@@ -86,12 +86,13 @@ local function panelFor(index)
       end
     end
   end
-  return common.panelForWidth(widest)
+  return common.widthStep(widest)
 end
 
 -- Open `index`'s menu, close it when it is the open one (`toggle`), or move
--- the open panel to it. A menu needing another width opens a different
--- panel entry; the old one is closed first.
+-- to it. Moving always opens the other panel slot: Noctalia swaps panels
+-- instantly (no close animation, no focus gap) and anchors the new one
+-- under the pointer, i.e. under the hovered title.
 local function openMenu(index, toggle)
   if panelOpen and openIndex == index then
     if toggle then
@@ -100,22 +101,25 @@ local function openMenu(index, toggle)
     end
     return
   end
-  local target = panelFor(index)
-  local previous = panelOpen and openPanel or nil
-  if previous ~= nil and noctalia.getConfig("panel_width_mode") ~= "per_menu" then
-    -- Already open at the app's widest width: just switch content.
-    target = previous
+  local width
+  if panelOpen and openWidth ~= nil and noctalia.getConfig("panel_width_mode") ~= "per_menu" then
+    width = openWidth
+  else
+    width = widthFor(index)
   end
+  local slot = "a"
+  if panelOpen and openSlot == "a" then
+    slot = "b"
+  end
+  local target = common.panelId(width, slot)
   openIndex = index
   openPanel = target
+  openWidth = width
+  openSlot = slot
   panelOpen = true
   noctalia.state.set("appmenu.open", { index = index, panel = target, nonce = common.nonce() })
-  if previous ~= target then
-    if previous ~= nil then
-      noctalia.togglePanel(previous)
-    end
-    noctalia.togglePanel(target)
-  end
+  -- Never close first: opening over an open panel replaces it in place.
+  noctalia.togglePanel(target)
   render()
 end
 
@@ -332,6 +336,8 @@ noctalia.state.watch("appmenu.panel", function(value)
   if not panelOpen then
     openIndex = nil
     openPanel = nil
+    openWidth = nil
+    openSlot = nil
     -- Catch up with any focus change ignored while the panel was open.
     local latest = noctalia.state.get("appmenu.active")
     active = type(latest) == "table" and latest or nil
