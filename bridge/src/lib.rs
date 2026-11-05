@@ -24,3 +24,6 @@ pub mod desktop;
 pub mod focus;
 pub mod niri;
 pub mod proxy;
+pub mod publish;
+pub mod umbriel;
+pub mod wm;

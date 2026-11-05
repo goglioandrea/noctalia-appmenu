@@ -59,6 +59,11 @@ pub struct FocusEvent {
     /// Title of the focused surface at focus time. Empty when the
     /// compositor reports no title.
     pub title: String,
+    /// Compositor-native window id, as the compositor's IPC expects it
+    /// back (niri: the decimal `u64`; Umbriel: the opaque string id).
+    /// `winid` is a `u64` handle for the bridge's internal keys; this is
+    /// what the click path sends to focus the window.
+    pub window: String,
 }
 
 /// Decision produced by an implementor's pure focus-detection

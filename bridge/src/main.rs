@@ -2,17 +2,19 @@
 //!
 //! Wires the three subsystems together (post-ADR-0024 substrate):
 //!
-//! - `niri`: subscribe to niri-IPC's event-stream, expose a focus-pid feed
-//!   (the only `FocusSink` implementor at v1).
+//! - focus: a `FocusSink` for the running compositor — `niri` (niri-IPC
+//!   event stream) or `umbriel` (Umbriel IPC `windows` subscription),
+//!   chosen by `wm::detect`.
 //! - `active`: walk the focused app's AT-SPI menubar on each focus tick,
-//!   emit `active.json` + push it via Quickshell IPC.
+//!   emit `active.json` and, in `--stream` mode, announce it on stdout for
+//!   the Noctalia v5 plugin (`publish`).
 //! - `proxy`: own org.noctalia.AppMenu, expose a fixed-path active-app
 //!   proxy with the focused window's metadata as D-Bus properties.
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
 use noctalia_appmenu_bridge::focus::FocusSink;
-use noctalia_appmenu_bridge::{active, atspi, config, niri, proxy};
+use noctalia_appmenu_bridge::{active, atspi, config, niri, proxy, publish, umbriel, wm};
 use tracing::{info, warn};
 
 #[derive(Parser, Debug)]
@@ -25,6 +27,12 @@ struct Cli {
     /// Print version JSON for telemetry / verify scripts.
     #[arg(long)]
     version_json: bool,
+
+    /// Noctalia v5 plugin mode: announce every snapshot as a JSON line on
+    /// stdout (plus a heartbeat), and exit when stdout closes. Logs go to
+    /// stderr. This is how the plugin's service runs the bridge.
+    #[arg(long)]
+    stream: bool,
 
     /// Path to bridge config (TOML). Default: $XDG_CONFIG_HOME/noctalia-appmenu-bridge/config.toml
     #[arg(long)]
@@ -60,6 +68,11 @@ enum Cmd {
         /// window has app-internal focus at click time. See issue #109.
         #[arg(long, default_value_t = 0)]
         winid: u64,
+        /// Compositor-native id of the window to focus before the click
+        /// (`focus_window` in `active.json`). Works on niri and Umbriel and
+        /// takes precedence over `--winid`. Empty = no pre-focus.
+        #[arg(long, default_value = "")]
+        window: String,
         /// Milliseconds to sleep after the niri FocusWindow IPC reply
         /// and before issuing `Action.DoAction(0)`. The compositor
         /// needs at least one frame to swap wl_keyboard focus, and
@@ -91,6 +104,9 @@ enum Cmd {
         /// Firefox window). 0 = no pre-focus.
         #[arg(long, default_value_t = 0)]
         winid: u64,
+        /// Compositor-native window id to focus first (see `atspi-click`).
+        #[arg(long, default_value = "")]
+        window: String,
         /// Settle ms after the focus IPC before expanding.
         #[arg(long, default_value_t = 150)]
         focus_settle_ms: u64,
@@ -117,23 +133,39 @@ async fn main() -> Result<()> {
         service,
         path,
         winid,
+        window,
         focus_settle_ms,
     }) = cli.cmd.as_ref()
     {
-        return run_atspi_click(service, path, *winid, *focus_settle_ms).await;
+        let target = click_target(window, *winid);
+        return run_atspi_click(service, path, target.as_deref(), *focus_settle_ms).await;
     }
 
     if let Some(Cmd::AtspiExpand {
         service,
         path,
         winid,
+        window,
         focus_settle_ms,
     }) = cli.cmd.as_ref()
     {
-        return run_atspi_expand(service, path, *winid, *focus_settle_ms).await;
+        let target = click_target(window, *winid);
+        return run_atspi_expand(service, path, target.as_deref(), *focus_settle_ms).await;
     }
 
     init_tracing(cli.foreground);
+
+    let compositor = wm::detect().context(
+        "no supported compositor found: neither niri ($NIRI_SOCKET) nor Umbriel \
+         ($UMBRIEL_SOCKET or $XDG_RUNTIME_DIR/umbriel-$WAYLAND_DISPLAY.sock) is reachable; \
+         set NOCTALIA_APPMENU_COMPOSITOR=niri|umbriel to force one",
+    )?;
+    wm::set_active(compositor);
+    info!(compositor = compositor.as_str(), "compositor detected");
+
+    if cli.stream {
+        publish::enable_stream();
+    }
 
     let cfg = config::Config::load(cli.config.as_deref())?;
     info!(?cfg, "starting noctalia-appmenu-bridge");
@@ -165,11 +197,14 @@ async fn main() -> Result<()> {
     let (focus_tx, focus_rx) = tokio::sync::watch::channel(None);
     let (active_tx, active_rx) = tokio::sync::watch::channel(active::ActiveSnapshot::empty());
 
-    // The `FocusSink` trait is the abstraction door — at v1.0.0 the
-    // only implementor is `NiriFocusSink` (constitution principle I).
-    // Hyprland / Sway / KWin implementors will slot in here in v2
-    // without churning the rest of main.rs.
-    let niri_task = tokio::spawn(niri::NiriFocusSink::new().run(focus_tx, cfg.clone()));
+    // The `FocusSink` trait is the abstraction door: one implementor per
+    // compositor, nothing downstream depends on which one runs.
+    let focus_task = match compositor {
+        wm::Compositor::Niri => tokio::spawn(niri::NiriFocusSink::new().run(focus_tx, cfg.clone())),
+        wm::Compositor::Umbriel => {
+            tokio::spawn(umbriel::UmbrielFocusSink::new().run(focus_tx, cfg.clone()))
+        }
+    };
     let active_task = tokio::spawn(active::run(focus_rx, active_tx, cfg.clone()));
     let proxy_task = tokio::spawn(proxy::run(
         conn.clone(),
@@ -191,6 +226,9 @@ async fn main() -> Result<()> {
     // discard binding so it stays scheduled but its exit does not
     // tear the bridge down.
     let _a11y_watcher_handle = a11y_watcher_task;
+    // Stream mode: periodic heartbeat so the plugin can tell a live bridge
+    // from a wedged one. Also exits the process once stdout is closed.
+    let _heartbeat_handle = cli.stream.then(|| tokio::spawn(publish::heartbeat()));
     tokio::select! {
         _ = sigterm.recv() => {
             warn!("SIGTERM — shutting down");
@@ -200,9 +238,9 @@ async fn main() -> Result<()> {
             warn!("SIGINT — shutting down");
             Ok(())
         }
-        r = niri_task => {
-            warn!(?r, "niri task exited unexpectedly");
-            anyhow::bail!("niri task exited: {r:?}")
+        r = focus_task => {
+            warn!(?r, "focus task exited unexpectedly");
+            anyhow::bail!("focus task exited: {r:?}")
         }
         r = active_task => {
             warn!(?r, "active task exited unexpectedly");
@@ -227,50 +265,27 @@ async fn main() -> Result<()> {
 async fn run_atspi_click(
     service: &str,
     path: &str,
-    winid: u64,
+    window: Option<&str>,
     focus_settle_ms: u64,
 ) -> Result<()> {
-    // Issue #109: pre-focus the captured niri window so multi-window
-    // apps route `Action.DoAction(0)` to the correct window. Firefox
-    // is the canonical case — `DoAction` on its menu accessibles
-    // delegates to whichever Firefox window has internal focus, so
-    // without this pre-step *New Tab* on window A's menu can open
-    // the tab on window B if focus drifted between popup-open and
-    // click.
+    // Issue #109: pre-focus the captured window so multi-window apps
+    // route `Action.DoAction(0)` to the correct window. Firefox is the
+    // canonical case — `DoAction` on its menu accessibles delegates to
+    // whichever Firefox window has internal focus, so without this step
+    // *New Tab* on window A's menu can open the tab on window B.
     //
-    // `winid == 0` means "no captured window id" — older plugin
-    // builds, synthetic items, or first-focus edge cases. Skip the
-    // pre-focus entirely there; the original behaviour is preserved.
-    //
-    // spec 015 FR-001 / FR-002: structured INFO log + configurable
-    // settle window. v1.0.20's hard-coded 30 ms was empirically too
-    // short. Default bumps to 150 ms; harness can override.
-    let mut niri_focus_result = "skipped";
-    if winid > 0 {
-        match niri_focus_window(winid).await {
-            Ok(()) => {
-                niri_focus_result = "ok";
-                // Compositor needs ≥ 1 vblank to swap wl_keyboard
-                // focus AND Firefox needs ≥ 1 event-loop tick to
-                // sync its internal "active browser" pointer.
-                tokio::time::sleep(std::time::Duration::from_millis(focus_settle_ms)).await;
-            }
-            Err(e) => {
-                niri_focus_result = "err";
-                // Best-effort: a failed pre-focus is logged but does
-                // NOT block the click. niri may be temporarily
-                // unreachable and the DoAction often still works
-                // (window already had focus). Surfacing as a hard
-                // error would regress every single-window scenario.
-                eprintln!(
-                    "warning: niri focus-window {winid} failed: {e:#}; continuing with click"
-                );
-            }
-        }
-    }
+    // Best-effort: a failed pre-focus is logged but does NOT block the
+    // click (the window often still has focus).
+    let compositor = wm::detect();
+    let focus_result = prefocus(compositor, window, focus_settle_ms).await;
+    // Synthetic window actions that accept a target (Umbriel) use the
+    // captured window directly.
+    atspi::set_click_window(window.unwrap_or_default());
 
     eprintln!(
-        "[appmenu] atspi-click service={service} path={path} winid={winid} settle_ms={focus_settle_ms} niri_focus={niri_focus_result}"
+        "[appmenu] atspi-click service={service} path={path} window={} compositor={} settle_ms={focus_settle_ms} focus={focus_result}",
+        window.unwrap_or("-"),
+        compositor.map_or("none", wm::Compositor::as_str),
     );
 
     match atspi::do_action(service, path).await {
@@ -303,27 +318,16 @@ async fn run_atspi_click(
 async fn run_atspi_expand(
     service: &str,
     path: &str,
-    winid: u64,
+    window: Option<&str>,
     focus_settle_ms: u64,
 ) -> Result<()> {
-    let mut niri_focus_result = "skipped";
-    if winid > 0 {
-        match niri_focus_window(winid).await {
-            Ok(()) => {
-                niri_focus_result = "ok";
-                tokio::time::sleep(std::time::Duration::from_millis(focus_settle_ms)).await;
-            }
-            Err(e) => {
-                niri_focus_result = "err";
-                eprintln!(
-                    "warning: niri focus-window {winid} failed: {e:#}; continuing with expand"
-                );
-            }
-        }
-    }
+    let compositor = wm::detect();
+    let focus_result = prefocus(compositor, window, focus_settle_ms).await;
 
     eprintln!(
-        "[appmenu] atspi-expand service={service} path={path} winid={winid} settle_ms={focus_settle_ms} niri_focus={niri_focus_result}"
+        "[appmenu] atspi-expand service={service} path={path} window={} compositor={} settle_ms={focus_settle_ms} focus={focus_result}",
+        window.unwrap_or("-"),
+        compositor.map_or("none", wm::Compositor::as_str),
     );
 
     match atspi::expand_and_fetch(service, path).await {
@@ -360,18 +364,44 @@ async fn run_atspi_expand(
     }
 }
 
-/// Send `niri msg action focus-window --id <winid>` over niri-IPC.
-/// Used by [`run_atspi_click`] to align compositor focus with the
-/// window whose menu the user is acting on (issue #109).
-async fn niri_focus_window(winid: u64) -> Result<()> {
-    use niri_ipc::{socket::Socket, Action, Request};
+/// The window to pre-focus for a click: `--window` when given, else the
+/// legacy numeric `--winid` (niri only), else none.
+fn click_target(window: &str, winid: u64) -> Option<String> {
+    let window = window.trim();
+    if !window.is_empty() {
+        Some(window.to_string())
+    } else if winid > 0 {
+        Some(winid.to_string())
+    } else {
+        None
+    }
+}
 
-    let mut socket = Socket::connect().context("connecting to niri IPC socket")?;
-    let reply = socket
-        .send(Request::Action(Action::FocusWindow { id: winid }))
-        .context("sending FocusWindow action to niri")?;
-    reply.map_err(|e| anyhow::anyhow!("niri rejected FocusWindow(id={winid}): {e}"))?;
-    Ok(())
+/// Focus `window` on `compositor` and wait `settle_ms` for the
+/// compositor (one frame to move keyboard focus) and the app (one tick to
+/// sync its "active window") to catch up. Returns a short status for the
+/// log line: `skipped`, `ok` or `err`.
+async fn prefocus(
+    compositor: Option<wm::Compositor>,
+    window: Option<&str>,
+    settle_ms: u64,
+) -> &'static str {
+    let (Some(compositor), Some(window)) = (compositor, window) else {
+        return "skipped";
+    };
+    match wm::focus_window(compositor, window).await {
+        Ok(()) => {
+            tokio::time::sleep(std::time::Duration::from_millis(settle_ms)).await;
+            "ok"
+        }
+        Err(e) => {
+            eprintln!(
+                "warning: focusing window {window} on {} failed: {e:#}; continuing",
+                compositor.as_str()
+            );
+            "err"
+        }
+    }
 }
 
 /// Send a `RefreshActive` D-Bus method call to the running bridge so
@@ -399,10 +429,18 @@ fn init_tracing(foreground: bool) {
     let env_filter = EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| EnvFilter::new("noctalia_appmenu_bridge=info,zbus=warn"));
 
+    // Always stderr: in `--stream` mode stdout carries the protocol.
     let layer = if foreground {
-        fmt::layer().with_ansi(true).boxed()
+        fmt::layer()
+            .with_writer(std::io::stderr)
+            .with_ansi(true)
+            .boxed()
     } else {
-        fmt::layer().json().with_ansi(false).boxed()
+        fmt::layer()
+            .json()
+            .with_writer(std::io::stderr)
+            .with_ansi(false)
+            .boxed()
     };
 
     tracing_subscriber::registry()

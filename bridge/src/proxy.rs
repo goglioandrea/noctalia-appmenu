@@ -21,31 +21,15 @@ use tokio::sync::{watch, Mutex, Notify};
 use tracing::{debug, info, warn};
 use zbus::{interface, Connection};
 
-/// Serialise the active snapshot to a JSON file. Truncating
-/// in-place write — single open(O_WRONLY|O_TRUNC) + write + close,
-/// preserving the file's inode across updates. Errors are logged
-/// but non-fatal — the D-Bus proxy still publishes correctly.
+/// Serialise the active snapshot to a JSON file in a private (`0700`)
+/// directory, written atomically with mode `0600` — see
+/// [`crate::publish`]. Errors are logged but non-fatal; the D-Bus proxy
+/// still publishes correctly.
 ///
-/// **Why in-place, not tmpfile+rename (PR #41):** Quickshell's
-/// `FileView.watchChanges` attaches an inotify watch to the inode,
-/// not the path. The previous tmpfile+rename pattern replaced the
-/// inode on every write — `IN_MOVE_SELF` fires once, then the new
-/// inode is unwatched and silently misses subsequent writes. After
-/// 17h+ of quickshell uptime across many bridge restarts the QML
-/// widget would render empty until `systemctl --user restart
-/// noctalia-shell`. In-place truncate keeps the inode stable;
-/// inotify on the path resolves to the same node forever, and
-/// `IN_MODIFY` fires reliably on every write.
-///
-/// **Tearing tradeoff:** the QML reader could in theory observe a
-/// partial write between the truncate and the body write. Payload
-/// is <4 KiB in practice (small menu trees) — Linux's `write(2)`
-/// is atomic up to `PIPE_BUF` (4096) for regular files in single
-/// syscalls, and `serde_json::to_string` produces one buffer
-/// `std::fs::write` flushes in one syscall. Even when the payload
-/// exceeds 4 KiB the QML reader simply hits a `JSON.parse` error
-/// and skips that update — `BarWidget.qml` already handles this
-/// with a try/catch (see ADR-0021).
+/// (Upstream truncated the file in place so Quickshell's inotify watch
+/// stayed on one inode, at the cost of readers seeing torn writes. The
+/// Noctalia v5 plugin learns about updates from the bridge's stdout
+/// stream, so the atomic rename has no downside here.)
 ///
 /// `menu` carries the focused app's menubar tree as walked from
 /// AT-SPI (v0.3 substrate). JSON shape is unchanged from v0.2's
@@ -132,10 +116,8 @@ fn is_lazy_unreadable(menu: &atspi::MenuItem) -> bool {
 
 /// Build + write the active-snapshot JSON, with **producer-side
 /// dedup** — when the serialised payload is byte-identical to the
-/// previous successful write, skip both the file write and the IPC
-/// push entirely. Per Swarm H of the v3 best-practices synthesis,
-/// this saves the round-trip cost (≈5 ms per `qs ipc call` spawn)
-/// on the >80 % of bridge events that are no-op focus reshuffles
+/// previous successful write, skip both the file write and the stream
+/// announcement entirely. This saves work on the >80 % of bridge events that are no-op focus reshuffles
 /// within the same app — the bridge currently re-pushes the full
 /// menu tree on every `WindowFocusChanged`, but the payload only
 /// changes when title or menu structure actually moves.
@@ -154,11 +136,15 @@ fn write_active_json(
     let payload = serde_json::json!({
         "v": ACTIVE_JSON_SCHEMA_VERSION,
         "focus_pid": snap.focus_pid,
-        // niri window id of the focused window. Plugin uses this to
-        // call `niri msg action focus-window --id <id>` before invoking
-        // `Action.DoAction(0)`, so multi-window apps route the action
-        // to the correct window (issue #109).
+        // Internal u64 window handle (niri: the real id). Kept for
+        // consumers of the upstream schema; new consumers should use
+        // `focus_window`.
         "focus_winid": snap.focus_winid,
+        // Compositor-native window id to pass back to
+        // `atspi-click --window`, so the click is routed to the window
+        // whose menu the user is reading (issue #109) on niri and Umbriel.
+        "focus_window": snap.focus_window,
+        "compositor": crate::wm::active().map_or("", crate::wm::Compositor::as_str),
         "app_id": snap.app_id,
         "title": snap.title,
         "source": source.as_str(),
@@ -169,65 +155,24 @@ fn write_active_json(
     let body = payload.to_string();
 
     if last_body.as_deref() == Some(body.as_str()) {
-        // No-op publish: identical to last successful write. Skip
-        // both file write and IPC push. Both sides idempotent so
-        // skipping is safe; widget already has the latest state.
+        // No-op publish: identical to last successful write. Skip both
+        // the file write and the stream announcement.
         tracing::trace!("active.json publish coalesced (payload unchanged)");
         return;
     }
 
-    if let Err(e) = std::fs::write(path, &body) {
+    // Atomic, private write (see `crate::publish`). Upstream truncated in
+    // place to keep Quickshell's inotify watch on one inode; the Noctalia
+    // v5 plugin is told about updates on the stream instead, so an atomic
+    // rename is safe and spares readers a half-written file.
+    if let Err(e) = crate::publish::write_private_atomic(path, body.as_bytes()) {
         warn!(error=?e, path=%path.display(), "active.json write failed");
-        // Don't update last_body on write failure — next call should
-        // retry the file write. IPC push still attempted because the
-        // failure is on disk-write, not on the payload itself.
+        // Don't update last_body on write failure: the next call retries.
+        // Still announce — small payloads travel inline on the stream.
     } else {
         *last_body = Some(body.clone());
     }
-    push_ipc_update(&body);
-}
-
-/// Push the latest snapshot JSON to the QML widget via Quickshell's
-/// `qs ipc call` channel. The widget's `IpcHandler { target: "appmenu";
-/// function update(json) {...} }` parses the body and updates state
-/// directly — no inotify, no FileView debounce, no atomic-rename race
-/// window. The active.json file remains as a cold-start fallback (the
-/// widget's `FileView` reads it on first paint before the bridge has
-/// pushed) and a debugging surface, but the steady-state path is push.
-///
-/// **Best-effort:** any spawn or call failure is logged at `debug` and
-/// dropped. Quickshell may not be running at bridge start, the IPC
-/// handler may not be registered yet, or `qs` may not be on PATH —
-/// none of these are fatal because the file write above gives the
-/// widget a recoverable surface either way.
-///
-/// **Why not async/native zbus?** Quickshell's IPC is implemented as
-/// a CLI surface (`qs ipc call <target> <fn> <args>`), not a public
-/// D-Bus interface. The `qs` binary is the canonical way to reach it
-/// from out-of-process code. Spawning a short-lived child per focus
-/// change is cheap (~5ms on this hardware) and avoids us linking
-/// Quickshell internals.
-fn push_ipc_update(body: &str) {
-    use std::process::{Command, Stdio};
-    let result = Command::new("qs")
-        .args(["ipc", "call", "appmenu", "update", body])
-        .stdout(Stdio::null())
-        .stderr(Stdio::null())
-        .stdin(Stdio::null())
-        .status();
-    match result {
-        Ok(s) if s.success() => {}
-        Ok(s) => {
-            // Non-fatal — Quickshell may not be running yet, or the
-            // appmenu IpcHandler may not be loaded by the user's
-            // shell config. Logged at debug so the steady-state log
-            // stream stays quiet.
-            tracing::debug!(status = ?s, "qs ipc call appmenu update returned non-zero");
-        }
-        Err(e) => {
-            tracing::debug!(error = ?e, "qs ipc call spawn failed (qs not on PATH?)");
-        }
-    }
+    crate::publish::announce_active(&body, path);
 }
 
 /// Plain-old-data view of the four properties exported on the active
@@ -338,17 +283,8 @@ pub async fn run(
     // so the v0.1 plugin reads this file via `Quickshell.Io.FileView`
     // instead. ADR-0007 second-half (DBusMenu mirror) supersedes this
     // file-IPC path in v0.2.
-    let cache_dir = std::env::var("XDG_CACHE_HOME")
-        .map(std::path::PathBuf::from)
-        .ok()
-        .or_else(|| {
-            std::env::var("HOME")
-                .map(|h| std::path::PathBuf::from(h).join(".cache"))
-                .ok()
-        })
-        .unwrap_or_else(|| std::path::PathBuf::from("/tmp"))
-        .join("noctalia-appmenu");
-    let _ = std::fs::create_dir_all(&cache_dir);
+    let cache_dir = crate::publish::state_dir()?;
+    crate::publish::ensure_private_dir(&cache_dir)?;
     let active_json_path = cache_dir.join("active.json");
 
     // Emit an initial empty snapshot so the file exists at startup

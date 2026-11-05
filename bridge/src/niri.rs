@@ -106,6 +106,7 @@ fn focus_event(id: u64, pid: i32, window: &Window) -> FocusEvent {
         pid: pid as u32,
         app_id: window.app_id.clone().unwrap_or_default(),
         title: window.title.clone().unwrap_or_default(),
+        window: id.to_string(),
     }
 }
 

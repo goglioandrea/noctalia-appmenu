@@ -527,7 +527,36 @@ async fn read_name(
     let v = props
         .get("org.a11y.atspi.Accessible".try_into()?, "Name")
         .await?;
-    String::try_from(v).map_err(zbus::Error::Variant)
+    String::try_from(v)
+        .map(|name| clamp_label(&name))
+        .map_err(zbus::Error::Variant)
+}
+
+/// Upper bound on a label read from an app. Menu labels are short; the
+/// cap stops a hostile or broken app from inflating `active.json` (and
+/// the plugin's memory) with megabytes of text.
+pub const MAX_LABEL_CHARS: usize = 256;
+
+/// Upper bound on the children walked per accessible. AT-SPI reports
+/// `ChildCount` as an app-controlled `i32`: a negative value used to turn
+/// into a huge `usize` capacity (an abort, since release builds use
+/// `panic = "abort"`) and a huge positive one into millions of D-Bus
+/// round-trips. Real menus have tens of items.
+pub const MAX_CHILDREN: i32 = 512;
+
+/// Truncate `s` to [`MAX_LABEL_CHARS`] characters (char-boundary safe).
+#[must_use]
+pub fn clamp_label(s: &str) -> String {
+    match s.char_indices().nth(MAX_LABEL_CHARS) {
+        Some((idx, _)) => s[..idx].to_string(),
+        None => s.to_string(),
+    }
+}
+
+/// Clamp an app-reported child count into `0..=MAX_CHILDREN`.
+#[must_use]
+pub fn clamp_child_count(n: i32) -> i32 {
+    n.clamp(0, MAX_CHILDREN)
 }
 
 /// Read `ChildCount` (i32) on an accessible — same reason as `read_name`.
@@ -544,7 +573,9 @@ async fn read_child_count(
     let v = props
         .get("org.a11y.atspi.Accessible".try_into()?, "ChildCount")
         .await?;
-    i32::try_from(v).map_err(zbus::Error::Variant)
+    i32::try_from(v)
+        .map(clamp_child_count)
+        .map_err(zbus::Error::Variant)
 }
 
 /// `org.a11y.atspi.Action` — invoked from the click subcommand to
@@ -1300,6 +1331,20 @@ pub async fn fetch_menu_tree(
     let mut child_refs: Vec<(i32, String, OwnedObjectPath)> = Vec::with_capacity(count as usize);
     for i in 0..count {
         if let Ok((cs, cp)) = proxy.get_child_at_index(i).await {
+            // Security: a menu lives on its app's own bus connection. An
+            // app could otherwise list *another* app's accessibles as its
+            // menu items — or the bridge's reserved synthetic service —
+            // and have a click on an innocent-looking label activate
+            // something elsewhere. Only follow children on the same
+            // connection as their parent.
+            if cs != service {
+                tracing::debug!(
+                    parent = service,
+                    child = %cs,
+                    "skipping cross-connection AT-SPI child in menu walk"
+                );
+                continue;
+            }
             child_refs.push((i, cs, cp));
         }
     }
@@ -1755,7 +1800,7 @@ pub fn synthetic_menu(app_id: &str) -> MenuItem {
     let pretty = pretty_app_label(app_id);
     let app_submenu = synthetic_application_submenu(&pretty);
     let window_submenu = synthetic_window_submenu();
-    MenuItem {
+    let mut menu = MenuItem {
         id: 0,
         label: pretty,
         item_type: "submenu".to_string(),
@@ -1767,7 +1812,9 @@ pub fn synthetic_menu(app_id: &str) -> MenuItem {
         service: SYNTHETIC_SERVICE.to_string(),
         path: "niri:noop".to_string(),
         children: vec![app_submenu, window_submenu],
-    }
+    };
+    crate::wm::retain_supported_actions(&mut menu);
+    menu
 }
 
 /// Map a niri action to a freedesktop icon-theme name for the synthetic
@@ -1926,7 +1973,15 @@ async fn dispatch_synthetic(path: &str) -> Result<()> {
         .split_once(':')
         .with_context(|| format!("synthetic path missing dispatcher prefix: {path}"))?;
     match dispatcher {
-        "niri" => dispatch_niri_action(action).await,
+        // `niri:<action>` is the menu model's window-action vocabulary;
+        // `wm::window_action` allow-lists it and translates it for the
+        // running compositor (niri or Umbriel).
+        "niri" if action == "noop" => Ok(()),
+        "niri" => {
+            let compositor = crate::wm::detect().unwrap_or(crate::wm::Compositor::Niri);
+            let window = CLICK_WINDOW.get().map(String::as_str);
+            crate::wm::window_action(compositor, action, window).await
+        }
         // Spec 016 desktop-fallback: `xdg:<desktop-id>` launches the
         // resolved app's default action; `xdg-action:<desktop-id>:<action-id>`
         // launches a specific `[Desktop Action]`. Both re-resolve the
@@ -1943,24 +1998,16 @@ async fn dispatch_synthetic(path: &str) -> Result<()> {
     }
 }
 
-async fn dispatch_niri_action(action: &str) -> Result<()> {
-    if action == "noop" {
-        return Ok(());
+/// Window id captured by the click subcommand (`--window`), used by
+/// synthetic actions that can target a window directly.
+static CLICK_WINDOW: std::sync::OnceLock<String> = std::sync::OnceLock::new();
+
+/// Record the click's target window for [`dispatch_synthetic`]. Empty
+/// strings are ignored.
+pub fn set_click_window(window: &str) {
+    if !window.is_empty() {
+        let _ = CLICK_WINDOW.set(window.to_string());
     }
-    // Run `niri msg action <action>` as a one-shot child. Ignore
-    // stdout/stderr — niri's reply is irrelevant; we care only
-    // about exit status.
-    let status = tokio::process::Command::new("niri")
-        .args(["msg", "action", action])
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .await
-        .with_context(|| format!("spawning niri msg action {action}"))?;
-    if !status.success() {
-        anyhow::bail!("niri msg action {action} exited {status}");
-    }
-    Ok(())
 }
 
 #[cfg(test)]

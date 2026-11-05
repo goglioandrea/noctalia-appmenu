@@ -61,6 +61,7 @@ fn make_focus(pid: u32) -> FocusEvent {
         pid,
         app_id: "App".into(),
         title: "Title".into(),
+        window: "1".into(),
     }
 }
 

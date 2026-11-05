@@ -27,6 +27,11 @@ pub struct ActiveSnapshot {
     /// than to whichever window has Firefox-internal focus at the
     /// moment of the click. See issue #109.
     pub focus_winid: u64,
+    /// Compositor-native id of the focused window (niri: decimal u64,
+    /// Umbriel: opaque string). Empty when nothing is focused. The plugin
+    /// passes it back to `atspi-click --window` so the click path can
+    /// focus the right window on either compositor.
+    pub focus_window: String,
     /// Wayland app-id of the focused window.
     pub app_id: String,
     /// Title of the focused window.
@@ -45,6 +50,7 @@ impl ActiveSnapshot {
         Self {
             focus_pid: 0,
             focus_winid: 0,
+            focus_window: String::new(),
             app_id: String::new(),
             title: String::new(),
             menu_service: String::new(),
@@ -68,6 +74,7 @@ pub fn snapshot(focus: Option<&FocusEvent>) -> ActiveSnapshot {
         Some(f) => ActiveSnapshot {
             focus_pid: f.pid,
             focus_winid: f.winid,
+            focus_window: f.window.clone(),
             app_id: f.app_id.clone(),
             title: f.title.clone(),
             menu_service: String::new(),
@@ -121,6 +128,7 @@ mod tests {
             pid,
             app_id: app.into(),
             title: "t".into(),
+            window: "1".into(),
         }
     }
 
@@ -148,9 +156,11 @@ mod tests {
             pid: 99,
             app_id: "Firefox".into(),
             title: "t".into(),
+            window: "42".into(),
         };
         let snap = snapshot(Some(&f));
         assert_eq!(snap.focus_winid, 42);
+        assert_eq!(snap.focus_window, "42");
     }
 
     #[test]
