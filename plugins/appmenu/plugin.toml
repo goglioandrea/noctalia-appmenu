@@ -1,0 +1,88 @@
+# AppMenu - macOS/KDE-style global menu for Noctalia v5.
+#
+# The focused application's menubar, read over AT-SPI by the
+# noctalia-appmenu-bridge companion process, shown in the bar. Works on
+# niri and Umbriel.
+#
+# service -> the only entry that talks to the bridge: starts it with
+#            `noctalia-appmenu-bridge --stream`, restarts it if it exits,
+#            republishes each snapshot on "appmenu.active", and runs the
+#            clicks the UI posts on "appmenu.request".
+# bar     -> app name + top-level menu titles; a click opens the panel on
+#            that menu.
+# panel   -> the menu's items, with drill-down into submenus.
+
+id = "goglioandrea/appmenu"
+name = "AppMenu"
+version = "2.0.0"
+# 42: height = "content" panels. Covers runAsync argv (24), getColor (31),
+# container tooltips (32) and hover_highlight (34). Noctalia v5.4.1 supports 3..43.
+plugin_api = 42
+author = "goglioandrea"
+license = "Apache-2.0"
+icon = "menu-2"
+tags = ["bar", "panel", "menu", "niri", "umbriel"]
+dependencies = ["noctalia-appmenu-bridge"]
+description = "Global application menu in the bar (macOS/KDE style) for niri and Umbriel."
+
+# Plugin-level settings: the service needs them, so they live at the root.
+[[setting]]
+key = "bridge_path"
+type = "string"
+label_key = "settings.bridge_path.label"
+description_key = "settings.bridge_path.description"
+default = "noctalia-appmenu-bridge"
+advanced = true
+
+[[widget]]
+id = "bar"
+entry = "bar.luau"
+# Each menu title draws its own hover; the capsule-wide tint would fight it.
+hover_highlight = false
+
+  [[widget.setting]]
+  key = "show_app_name"
+  type = "bool"
+  label_key = "settings.show_app_name.label"
+  description_key = "settings.show_app_name.description"
+  default = true
+
+  [[widget.setting]]
+  key = "max_menus"
+  type = "int"
+  label_key = "settings.max_menus.label"
+  description_key = "settings.max_menus.description"
+  default = 12
+  min = 1
+  max = 30
+
+  [[widget.setting]]
+  key = "max_title_chars"
+  type = "int"
+  label_key = "settings.max_title_chars.label"
+  description_key = "settings.max_title_chars.description"
+  default = 24
+  min = 4
+  max = 80
+
+  [[widget.setting]]
+  key = "hide_when_empty"
+  type = "bool"
+  label_key = "settings.hide_when_empty.label"
+  description_key = "settings.hide_when_empty.description"
+  default = false
+
+[[panel]]
+id = "menu"
+entry = "panel.luau"
+width = 320
+height = "content"
+max_height = 560
+placement = "attached"
+position = "auto"
+open_near_click = true
+dismiss_on_outside_click = true
+
+[[service]]
+id = "service"
+entry = "service.luau"

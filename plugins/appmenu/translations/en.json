@@ -1,0 +1,47 @@
+{
+  "notify": {
+    "click_failed": "AppMenu: the menu item could not be activated"
+  },
+  "panel": {
+    "back": "Back",
+    "empty": "This menu has no items.",
+    "expand_failed": "Could not read this menu from the application.",
+    "loading": "Loading…",
+    "missing": "The bridge ({bin}) is not installed or not on PATH.",
+    "next_menu": "Next menu",
+    "no_app": "No focused application.",
+    "no_menu": "The focused application exposes no menu.",
+    "previous_menu": "Previous menu"
+  },
+  "settings": {
+    "bridge_path": {
+      "description": "Command or absolute path of noctalia-appmenu-bridge.",
+      "label": "Bridge command"
+    },
+    "hide_when_empty": {
+      "description": "Take no bar space while no application is focused.",
+      "label": "Hide when empty"
+    },
+    "max_menus": {
+      "description": "Most top-level menus shown in the bar.",
+      "label": "Maximum menus"
+    },
+    "max_title_chars": {
+      "description": "Longer menu titles are shortened with an ellipsis.",
+      "label": "Maximum title length"
+    },
+    "show_app_name": {
+      "description": "Show the focused application's name before its menus.",
+      "label": "Show application name"
+    }
+  },
+  "status": {
+    "exited": "The AppMenu bridge stopped; restarting. Log: $XDG_RUNTIME_DIR/noctalia-appmenu-bridge.log",
+    "spawn_failed": "Could not start the AppMenu bridge; retrying.",
+    "stale": "The AppMenu bridge is not responding."
+  },
+  "tooltip": {
+    "missing": "noctalia-appmenu-bridge not found ({bin})",
+    "waiting": "Waiting for a focused application…"
+  }
+}

@@ -1,0 +1,47 @@
+{
+  "notify": {
+    "click_failed": "AppMenu: impossibile attivare la voce di menu"
+  },
+  "panel": {
+    "back": "Indietro",
+    "empty": "Questo menu non ha voci.",
+    "expand_failed": "Impossibile leggere questo menu dall'applicazione.",
+    "loading": "Caricamento…",
+    "missing": "Il bridge ({bin}) non è installato o non è nel PATH.",
+    "next_menu": "Menu successivo",
+    "no_app": "Nessuna applicazione attiva.",
+    "no_menu": "L'applicazione attiva non espone alcun menu.",
+    "previous_menu": "Menu precedente"
+  },
+  "settings": {
+    "bridge_path": {
+      "description": "Comando o percorso assoluto di noctalia-appmenu-bridge.",
+      "label": "Comando del bridge"
+    },
+    "hide_when_empty": {
+      "description": "Non occupare spazio nella barra quando nessuna applicazione è attiva.",
+      "label": "Nascondi se vuoto"
+    },
+    "max_menus": {
+      "description": "Numero massimo di menu mostrati nella barra.",
+      "label": "Numero massimo di menu"
+    },
+    "max_title_chars": {
+      "description": "I titoli più lunghi vengono accorciati con i puntini.",
+      "label": "Lunghezza massima dei titoli"
+    },
+    "show_app_name": {
+      "description": "Mostra il nome dell'applicazione attiva prima dei suoi menu.",
+      "label": "Mostra il nome dell'applicazione"
+    }
+  },
+  "status": {
+    "exited": "Il bridge di AppMenu si è fermato; riavvio in corso. Log: $XDG_RUNTIME_DIR/noctalia-appmenu-bridge.log",
+    "spawn_failed": "Impossibile avviare il bridge di AppMenu; nuovo tentativo a breve.",
+    "stale": "Il bridge di AppMenu non risponde."
+  },
+  "tooltip": {
+    "missing": "noctalia-appmenu-bridge non trovato ({bin})",
+    "waiting": "In attesa di un'applicazione attiva…"
+  }
+}
