@@ -307,6 +307,71 @@ pub async fn window_action(
     }
 }
 
+/// Send the allow-listed browser shortcut `id` ([`crate::browser::SHORTCUTS`])
+/// to the captured window.
+///
+/// Hyprland delivers it to the window directly (`send_shortcut`). Umbriel
+/// and niri have no such action, so `wtype` types it into the focused
+/// window — the click subcommand has already focused the captured one.
+///
+/// # Errors
+/// When `id` is unknown, `wtype` is missing or fails (niri lacks the
+/// virtual-keyboard protocol), or Hyprland rejects the dispatch.
+pub async fn send_shortcut(compositor: Compositor, id: &str, window: Option<&str>) -> Result<()> {
+    let sc =
+        crate::browser::shortcut(id).ok_or_else(|| anyhow!("unknown browser shortcut {id:?}"))?;
+    match compositor {
+        Compositor::Hyprland => crate::hyprland::send_shortcut(sc, window).await,
+        Compositor::Umbriel | Compositor::Niri => run_wtype(sc).await,
+    }
+}
+
+/// `wtype -M <mod>… -k <key> -m <mod>…` (argv, no shell).
+fn wtype_argv(sc: &crate::browser::Shortcut) -> Vec<String> {
+    let mut argv = Vec::new();
+    for m in sc.mods {
+        argv.push("-M".to_string());
+        argv.push(m.wtype().to_string());
+    }
+    argv.push("-k".to_string());
+    argv.push(sc.key.to_string());
+    for m in sc.mods.iter().rev() {
+        argv.push("-m".to_string());
+        argv.push(m.wtype().to_string());
+    }
+    argv
+}
+
+async fn run_wtype(sc: &crate::browser::Shortcut) -> Result<()> {
+    let output = tokio::time::timeout(
+        IPC_TIMEOUT,
+        tokio::process::Command::new("wtype")
+            .args(wtype_argv(sc))
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::piped())
+            .output(),
+    )
+    .await
+    .context("wtype timed out")?;
+    let output = match output {
+        Ok(o) => o,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            bail!("browser menu items need `wtype` (pacman -S wtype)")
+        }
+        Err(e) => return Err(e).context("spawning wtype"),
+    };
+    if !output.status.success() {
+        let err = String::from_utf8_lossy(&output.stderr);
+        bail!(
+            "wtype failed ({}): {}",
+            output.status,
+            truncate(err.trim(), 200)
+        );
+    }
+    Ok(())
+}
+
 /// Umbriel window ids are ext-foreign-toplevel identifiers: short opaque
 /// tokens. Reject anything that is empty, huge, or carries control
 /// characters before it goes on the wire.
@@ -493,6 +558,17 @@ mod tests {
         );
         retain_for(Compositor::Niri, &mut on_niri);
         assert_eq!(on_niri.children.len(), 1);
+    }
+
+    #[test]
+    fn wtype_argv_presses_and_releases_modifiers_in_order() {
+        let sc = crate::browser::shortcut("new-private-window").unwrap();
+        assert_eq!(
+            wtype_argv(sc),
+            ["-M", "ctrl", "-M", "shift", "-k", "n", "-m", "shift", "-m", "ctrl"]
+        );
+        let f11 = crate::browser::shortcut("fullscreen").unwrap();
+        assert_eq!(wtype_argv(f11), ["-k", "F11"]);
     }
 
     #[test]

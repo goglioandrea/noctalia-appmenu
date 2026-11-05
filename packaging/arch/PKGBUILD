@@ -24,6 +24,7 @@ optdepends=(
   'niri: supported compositor'
   'umbriel: supported compositor'
   'hyprland: supported compositor'
+  'wtype: browser menu shortcuts on Umbriel and niri'
 )
 provides=('noctalia-appmenu')
 conflicts=('noctalia-appmenu')

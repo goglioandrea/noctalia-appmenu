@@ -239,6 +239,41 @@ pub async fn window_action(niri_action: &str, window: Option<&str>) -> Result<()
     dispatch(&lua, &classic).await
 }
 
+/// Lua and classic `send_shortcut` commands for `sc`. Pure, for tests.
+#[must_use]
+pub fn shortcut_commands(sc: &crate::browser::Shortcut, addr: Option<&str>) -> (String, String) {
+    let mods = sc
+        .mods
+        .iter()
+        .map(|m| m.hyprland())
+        .collect::<Vec<_>>()
+        .join(" ");
+    let win_lua = addr.map_or(String::new(), |a| format!(", window = \"address:{a}\""));
+    let win_classic = addr.map_or(String::new(), |a| format!(", address:{a}"));
+    (
+        format!(
+            "hl.dsp.send_shortcut({{ mods = \"{mods}\", key = \"{}\"{win_lua} }})",
+            sc.key
+        ),
+        format!("sendshortcut {mods}, {}{win_classic}", sc.key),
+    )
+}
+
+/// Send an allow-listed browser shortcut to `window`.
+///
+/// # Errors
+/// When the address is malformed or Hyprland rejects the dispatch.
+pub async fn send_shortcut(sc: &crate::browser::Shortcut, window: Option<&str>) -> Result<()> {
+    let addr = match window.filter(|w| !w.is_empty()) {
+        Some(w) => Some(
+            parse_address(w).ok_or_else(|| anyhow!("malformed Hyprland window address {w:?}"))?,
+        ),
+        None => None,
+    };
+    let (lua, classic) = shortcut_commands(sc, addr.as_deref());
+    dispatch(&lua, &classic).await
+}
+
 /// The subset of a `j/clients` entry the bridge needs.
 #[derive(Debug, Clone, Default, Deserialize, PartialEq, Eq)]
 #[serde(default)]
@@ -555,6 +590,17 @@ mod tests {
         assert_eq!(lua, "hl.dsp.window.close({ window = \"address:0xab\" })");
         assert_eq!(classic, "closewindow address:0xab");
         assert_eq!(commands_for("close-window", None).unwrap().1, "killactive");
+    }
+
+    #[test]
+    fn shortcut_commands_both_syntaxes() {
+        let sc = crate::browser::shortcut("new-private-window").unwrap();
+        let (lua, classic) = shortcut_commands(sc, Some("0xab"));
+        assert_eq!(
+            lua,
+            "hl.dsp.send_shortcut({ mods = \"CTRL SHIFT\", key = \"n\", window = \"address:0xab\" })"
+        );
+        assert_eq!(classic, "sendshortcut CTRL SHIFT, n, address:0xab");
     }
 
     #[test]

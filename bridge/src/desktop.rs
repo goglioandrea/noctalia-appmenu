@@ -694,6 +694,9 @@ pub fn fallback_menu(app_id: &str) -> Option<MenuItem> {
         Some(entry) => build_enriched(trimmed, &entry),
         None => crate::atspi::synthetic_menu(trimmed),
     };
+    // Chromium browsers have no readable menubar: add template menus that
+    // send their standard shortcuts (see `crate::browser`).
+    crate::browser::augment(trimmed, &mut menu);
     // Drop window actions the running compositor cannot perform.
     crate::wm::retain_supported_actions(&mut menu);
     Some(menu)

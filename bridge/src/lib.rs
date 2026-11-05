@@ -19,6 +19,7 @@
 
 pub mod active;
 pub mod atspi;
+pub mod browser;
 pub mod config;
 pub mod desktop;
 pub mod focus;

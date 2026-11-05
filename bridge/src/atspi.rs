@@ -2005,6 +2005,13 @@ async fn dispatch_synthetic(path: &str) -> Result<()> {
             let window = CLICK_WINDOW.get().map(String::as_str);
             crate::wm::window_action(compositor, action, window).await
         }
+        // Browser template menus (`crate::browser`): `key:<id>` names an
+        // entry of a closed shortcut table, never raw keys.
+        "key" => {
+            let compositor = crate::wm::detect().unwrap_or(crate::wm::Compositor::Niri);
+            let window = CLICK_WINDOW.get().map(String::as_str);
+            crate::wm::send_shortcut(compositor, action, window).await
+        }
         // Spec 016 desktop-fallback: `xdg:<desktop-id>` launches the
         // resolved app's default action; `xdg-action:<desktop-id>:<action-id>`
         // launches a specific `[Desktop Action]`. Both re-resolve the

@@ -11,6 +11,7 @@ _instructions() {
     Qt apps started before the bridge may need a restart to expose their
     menus. Firefox needs accessibility enabled (about:config:
     accessibility.force_disabled = 0).
+    Browser menus (Chrome, Vivaldi, …) on Umbriel/niri need wtype.
 EOF
 }
 

@@ -81,7 +81,7 @@ entry (name, desktop actions such as *New Window*) plus window controls.
 | GTK 3 with the accessibility bridge (GIMP, LibreOffice…) | real menu |
 | GTK 4 / libadwaita (popover menus) | fallback |
 | Electron (VS Code, Slack…) | fallback, real menu with `--force-accessibility` |
-| Chromium / Chrome | fallback |
+| Chromium, Chrome, Vivaldi, Brave, Edge | browser template menu (see below) |
 | Firefox / Thunderbird | fallback (see below) |
 | libcosmic / Iced | fallback |
 
@@ -93,6 +93,18 @@ accessibility bus when it starts, and Qt checks it at launch.
 which would leave Firefox's own menubar pinned on screen. The bridge therefore serves
 the fallback for Firefox. A clean fix needs the compositor to advertise
 `org_kde_kwin_appmenu_manager`; niri, Umbriel and Hyprland do not today.
+
+**Chromium-family browsers** (Chrome, Chromium, Vivaldi, Brave, Edge, Opera) have no
+menubar on Linux, only the "⋮" button. For these apps only, the fallback gains File,
+Edit, View, History, Bookmarks and Tools menus whose items send the browser's
+standard keyboard shortcuts (Ctrl+T, Ctrl+Shift+N, …). Installed web apps get a
+reduced Edit / View / Go menu. If you have rebound a shortcut in the browser, the
+menu item follows your binding. Sending the keys needs:
+
+- **Hyprland:** nothing extra (`send_shortcut` targets the window directly);
+- **Umbriel:** `wtype` (`pacman -S wtype`);
+- **niri:** `wtype` works only if your niri supports the virtual-keyboard
+  protocol; otherwise the item reports an error.
 
 The window controls in the fallback map to each compositor's own actions. On
 Umbriel and Hyprland, *Expand Column to Available Width* has no equivalent and is

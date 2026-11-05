@@ -44,6 +44,12 @@ translation table (`hyprland::commands_for`), and every window address is valida
 plain hex (`hyprland::parse_address`) before it is interpolated into a `dispatch`
 command, so a crafted id cannot smuggle in another dispatcher (such as `exec`).
 
+Browser template menus (`browser.rs`) send keyboard shortcuts. A menu item carries
+only `key:<id>`, where `<id>` names an entry of a closed table; the keys themselves
+never come from the menu, `active.json` or the command line. `wtype` is run as an argv
+array (no shell). The menu is shown only for apps identified as Chromium browsers,
+which avoids upstream's "menu that lies about bindings" problem (ADR-0031).
+
 The plugin side adds defence in depth: the service validates every service/path/window
 before it goes on the bridge's command line, passes them as an argv array (no shell)
 after `--`, and reads only the bridge's own `…/noctalia-appmenu/active.json`.
