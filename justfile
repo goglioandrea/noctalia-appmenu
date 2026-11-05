@@ -37,15 +37,14 @@ bridge-flame *FLAGS:
 
 # ---------- plugin ----------
 
-plugin-lint:
-    qmllint plugin/BarWidget.qml plugin/components/*.qml
+# Needs luau-analyze (AUR: luau) and the Noctalia type definitions from
+# noctalia-dev/official-plugins (noctalia.d.luau).
+plugin-lint DEFS="noctalia.d.luau":
+    luau-analyze --definitions={{DEFS}} plugins/appmenu/*.luau
 
+# Bridge to ~/.local/bin, plugin symlinked into Noctalia's local plugin dir.
 plugin-install-local:
-    mkdir -p ~/.config/noctalia/plugins/noctalia-appmenu
-    cp -r plugin/* ~/.config/noctalia/plugins/noctalia-appmenu/
-
-qmlformat:
-    qmlformat -i plugin/BarWidget.qml plugin/components/*.qml
+    scripts/dev-install.sh --link
 
 # ---------- nix ----------
 
@@ -124,7 +123,6 @@ shadow-ci:
 fix:
     cd bridge && cargo fmt --all
     alejandra .
-    qmlformat -i plugin/BarWidget.qml plugin/components/*.qml
     typos --config typos.toml --write-changes || true
 
 # Same as shadow-ci but also runs the heavyweight nix flake build.

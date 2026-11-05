@@ -690,10 +690,13 @@ pub fn fallback_menu(app_id: &str) -> Option<MenuItem> {
     if trimmed.is_empty() {
         return None;
     }
-    match resolve(trimmed) {
-        Some(entry) => Some(build_enriched(trimmed, &entry)),
-        None => Some(crate::atspi::synthetic_menu(trimmed)),
-    }
+    let mut menu = match resolve(trimmed) {
+        Some(entry) => build_enriched(trimmed, &entry),
+        None => crate::atspi::synthetic_menu(trimmed),
+    };
+    // Drop window actions the running compositor cannot perform.
+    crate::wm::retain_supported_actions(&mut menu);
+    Some(menu)
 }
 
 // ── Safe launchers (click path) ──────────────────────────────────────

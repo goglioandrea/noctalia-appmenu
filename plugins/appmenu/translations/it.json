@@ -1,0 +1,116 @@
+{
+  "notify": {
+    "click_failed": "AppMenu: impossibile attivare la voce di menu"
+  },
+  "panel": {
+    "back": "Indietro",
+    "empty": "Questo menu non ha voci.",
+    "expand_failed": "Impossibile leggere questo menu dall'applicazione.",
+    "loading": "Caricamento…",
+    "missing": "Il bridge ({bin}) non è installato o non è nel PATH.",
+    "next_menu": "Menu successivo",
+    "no_app": "Nessuna applicazione attiva.",
+    "no_menu": "L'applicazione attiva non espone alcun menu.",
+    "previous_menu": "Menu precedente"
+  },
+  "settings": {
+    "app_name_color": {
+      "description": "Vuoto: come il testo del widget.",
+      "label": "Colore del nome dell'applicazione"
+    },
+    "app_name_spacing": {
+      "description": "Pixel tra il nome dell'applicazione e il primo titolo di menu.",
+      "label": "Spazio dopo il nome dell'applicazione"
+    },
+    "bridge_path": {
+      "description": "Comando o percorso assoluto di noctalia-appmenu-bridge.",
+      "label": "Comando del bridge"
+    },
+    "hide_when_empty": {
+      "description": "Non occupare spazio nella barra quando nessuna applicazione è attiva.",
+      "label": "Nascondi se vuoto"
+    },
+    "item_hover_highlight": {
+      "description": "Disegna uno sfondo dietro la voce sotto il puntatore.",
+      "label": "Evidenzia la voce al passaggio del mouse"
+    },
+    "item_padding": {
+      "description": "Margine verticale di ogni voce, in pixel.",
+      "label": "Margine delle voci"
+    },
+    "item_padding_h": {
+      "description": "Margine orizzontale di ogni voce, in pixel. Allarga anche il pannello.",
+      "label": "Margine laterale delle voci"
+    },
+    "item_spacing": {
+      "description": "Pixel tra una voce e l'altra.",
+      "label": "Spazio tra le voci"
+    },
+    "item_text_color": {
+      "description": "Colore del testo delle voci di menu. Vuoto: colore del tema.",
+      "label": "Colore delle voci"
+    },
+    "max_menus": {
+      "description": "Numero massimo di menu mostrati nella barra.",
+      "label": "Numero massimo di menu"
+    },
+    "max_title_chars": {
+      "description": "I titoli più lunghi vengono accorciati con i puntini.",
+      "label": "Lunghezza massima dei titoli"
+    },
+    "menu_highlight": {
+      "description": "Quando disegnare uno sfondo dietro un titolo di menu.",
+      "label": "Sfondo dei titoli",
+      "options": {
+        "hover": "Al passaggio del mouse e quando è aperto",
+        "never": "Mai",
+        "open": "Solo quando il menu è aperto"
+      }
+    },
+    "menu_padding": {
+      "description": "Margine orizzontale dentro ogni titolo, in pixel. Determina anche la larghezza del suo sfondo.",
+      "label": "Margine interno dei titoli"
+    },
+    "menu_selected_text_color": {
+      "description": "Colore del titolo il cui menu è aperto. Vuoto: invariato.",
+      "label": "Colore del titolo del menu aperto"
+    },
+    "menu_spacing": {
+      "description": "Pixel aggiuntivi tra i titoli dei menu, oltre al loro margine interno.",
+      "label": "Spazio tra i menu"
+    },
+    "menu_text_color": {
+      "description": "Colore del testo dei titoli dei menu. Vuoto: come il testo del widget.",
+      "label": "Colore dei titoli dei menu"
+    },
+    "panel_extra_width": {
+      "description": "Pixel aggiunti (o tolti) alla larghezza stimata del menu. Aumentalo se le voci lunghe vengono tagliate, diminuiscilo se i pannelli sono troppo larghi.",
+      "label": "Correzione larghezza pannello"
+    },
+    "panel_padding": {
+      "description": "Spazio tra il bordo del pannello e le voci, in pixel.",
+      "label": "Margine interno del pannello"
+    },
+    "show_app_name": {
+      "description": "Mostra il nome dell'applicazione attiva prima dei suoi menu.",
+      "label": "Mostra il nome dell'applicazione"
+    },
+    "show_menu_arrows": {
+      "description": "Frecce in cima al pannello per passare al menu precedente/successivo.",
+      "label": "Mostra le frecce tra i menu"
+    },
+    "show_menu_title": {
+      "description": "Ripete il nome del menu aperto in cima al pannello.",
+      "label": "Mostra il nome del menu"
+    }
+  },
+  "status": {
+    "exited": "Il bridge di AppMenu si è fermato; riavvio in corso. Log: $XDG_RUNTIME_DIR/noctalia-appmenu-bridge.log",
+    "spawn_failed": "Impossibile avviare il bridge di AppMenu; nuovo tentativo a breve.",
+    "stale": "Il bridge di AppMenu non risponde."
+  },
+  "tooltip": {
+    "missing": "noctalia-appmenu-bridge non trovato ({bin})",
+    "waiting": "In attesa di un'applicazione attiva…"
+  }
+}

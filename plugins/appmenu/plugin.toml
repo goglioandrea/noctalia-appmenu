@@ -1,0 +1,295 @@
+# AppMenu - macOS/KDE-style global menu for Noctalia v5.
+#
+# The focused application's menubar, read over AT-SPI by the
+# noctalia-appmenu-bridge companion process, shown in the bar. Works on
+# niri, Umbriel and Hyprland.
+#
+# service -> the only entry that talks to the bridge: starts it with
+#            `noctalia-appmenu-bridge --stream`, restarts it if it exits,
+#            republishes each snapshot on "appmenu.active", and runs the
+#            clicks the UI posts on "appmenu.request".
+# bar     -> app name + top-level menu titles; a click opens the panel on
+#            that menu.
+# panel   -> the menu's items, with drill-down into submenus.
+
+id = "goglioandrea/appmenu"
+name = "AppMenu"
+version = "2.2.0"
+# 42: height = "content" panels. Covers runAsync argv (24), getColor (31),
+# container tooltips (32) and hover_highlight (34). Noctalia v5.4.1 supports 3..43.
+plugin_api = 42
+author = "goglioandrea"
+license = "Apache-2.0"
+icon = "menu-2"
+tags = ["bar", "panel", "menu", "niri", "umbriel", "hyprland"]
+dependencies = ["noctalia-appmenu-bridge"]
+description = "Global application menu in the bar (macOS/KDE style) for niri, Umbriel and Hyprland."
+
+# Plugin-level settings: the service needs them, so they live at the root.
+[[setting]]
+key = "bridge_path"
+type = "string"
+label_key = "settings.bridge_path.label"
+description_key = "settings.bridge_path.description"
+default = "noctalia-appmenu-bridge"
+advanced = true
+
+# Menu panel appearance. Plugin-level (Settings -> Plugins -> AppMenu, gear)
+# because several panel entries share them, and the bar needs them to size
+# the panel.
+[[setting]]
+key = "show_menu_title"
+type = "bool"
+label_key = "settings.show_menu_title.label"
+description_key = "settings.show_menu_title.description"
+default = false
+
+[[setting]]
+key = "show_menu_arrows"
+type = "bool"
+label_key = "settings.show_menu_arrows.label"
+description_key = "settings.show_menu_arrows.description"
+default = false
+
+[[setting]]
+key = "item_text_color"
+type = "color"
+label_key = "settings.item_text_color.label"
+description_key = "settings.item_text_color.description"
+default = ""
+
+[[setting]]
+key = "item_hover_highlight"
+type = "bool"
+label_key = "settings.item_hover_highlight.label"
+description_key = "settings.item_hover_highlight.description"
+default = true
+
+[[setting]]
+key = "item_padding"
+type = "int"
+label_key = "settings.item_padding.label"
+description_key = "settings.item_padding.description"
+default = 3
+min = 0
+max = 24
+
+[[setting]]
+key = "item_spacing"
+type = "int"
+label_key = "settings.item_spacing.label"
+description_key = "settings.item_spacing.description"
+default = 0
+min = 0
+max = 24
+
+[[setting]]
+key = "item_padding_h"
+type = "int"
+label_key = "settings.item_padding_h.label"
+description_key = "settings.item_padding_h.description"
+default = 6
+min = 0
+max = 32
+
+[[setting]]
+key = "panel_padding"
+type = "int"
+label_key = "settings.panel_padding.label"
+description_key = "settings.panel_padding.description"
+default = 0
+min = 0
+max = 32
+
+[[setting]]
+key = "panel_extra_width"
+type = "int"
+label_key = "settings.panel_extra_width.label"
+description_key = "settings.panel_extra_width.description"
+default = 0
+min = -80
+max = 200
+
+[[widget]]
+id = "bar"
+entry = "bar.luau"
+# Each menu title draws its own hover; the capsule-wide tint would fight it.
+hover_highlight = false
+
+  [[widget.setting]]
+  key = "show_app_name"
+  type = "bool"
+  label_key = "settings.show_app_name.label"
+  description_key = "settings.show_app_name.description"
+  default = true
+
+  [[widget.setting]]
+  key = "max_menus"
+  type = "int"
+  label_key = "settings.max_menus.label"
+  description_key = "settings.max_menus.description"
+  default = 12
+  min = 1
+  max = 30
+
+  [[widget.setting]]
+  key = "max_title_chars"
+  type = "int"
+  label_key = "settings.max_title_chars.label"
+  description_key = "settings.max_title_chars.description"
+  default = 24
+  min = 4
+  max = 80
+
+  [[widget.setting]]
+  key = "menu_text_color"
+  type = "color"
+  label_key = "settings.menu_text_color.label"
+  description_key = "settings.menu_text_color.description"
+  default = ""
+
+  [[widget.setting]]
+  key = "menu_selected_text_color"
+  type = "color"
+  label_key = "settings.menu_selected_text_color.label"
+  description_key = "settings.menu_selected_text_color.description"
+  default = ""
+
+  [[widget.setting]]
+  key = "app_name_color"
+  type = "color"
+  label_key = "settings.app_name_color.label"
+  description_key = "settings.app_name_color.description"
+  default = ""
+  visible_when = { key = "show_app_name", values = ["true"] }
+
+  [[widget.setting]]
+  key = "menu_highlight"
+  type = "select"
+  label_key = "settings.menu_highlight.label"
+  description_key = "settings.menu_highlight.description"
+  default = "open"
+  options = [
+    { value = "open", label_key = "settings.menu_highlight.options.open" },
+    { value = "hover", label_key = "settings.menu_highlight.options.hover" },
+    { value = "never", label_key = "settings.menu_highlight.options.never" },
+  ]
+
+  [[widget.setting]]
+  key = "app_name_spacing"
+  type = "int"
+  label_key = "settings.app_name_spacing.label"
+  description_key = "settings.app_name_spacing.description"
+  default = 6
+  min = 0
+  max = 48
+
+  [[widget.setting]]
+  key = "menu_spacing"
+  type = "int"
+  label_key = "settings.menu_spacing.label"
+  description_key = "settings.menu_spacing.description"
+  default = 0
+  min = 0
+  max = 48
+
+  [[widget.setting]]
+  key = "menu_padding"
+  type = "int"
+  label_key = "settings.menu_padding.label"
+  description_key = "settings.menu_padding.description"
+  default = 6
+  min = 0
+  max = 24
+
+  [[widget.setting]]
+  key = "hide_when_empty"
+  type = "bool"
+  label_key = "settings.hide_when_empty.label"
+  description_key = "settings.hide_when_empty.description"
+  default = false
+
+# One panel per width step: Noctalia v5.4 sizes a panel's width from the
+# manifest only (height follows the content). The bar estimates the open
+# menu's width and opens the narrowest entry it fits in - see
+# common.PANEL_WIDTHS, which must list the same widths.
+[[panel]]
+id = "menu_160"
+entry = "panel.luau"
+width = 160
+height = "content"
+max_height = 560
+placement = "attached"
+position = "auto"
+open_near_click = true
+dismiss_on_outside_click = true
+
+[[panel]]
+id = "menu_200"
+entry = "panel.luau"
+width = 200
+height = "content"
+max_height = 560
+placement = "attached"
+position = "auto"
+open_near_click = true
+dismiss_on_outside_click = true
+
+[[panel]]
+id = "menu_240"
+entry = "panel.luau"
+width = 240
+height = "content"
+max_height = 560
+placement = "attached"
+position = "auto"
+open_near_click = true
+dismiss_on_outside_click = true
+
+[[panel]]
+id = "menu_280"
+entry = "panel.luau"
+width = 280
+height = "content"
+max_height = 560
+placement = "attached"
+position = "auto"
+open_near_click = true
+dismiss_on_outside_click = true
+
+[[panel]]
+id = "menu_340"
+entry = "panel.luau"
+width = 340
+height = "content"
+max_height = 560
+placement = "attached"
+position = "auto"
+open_near_click = true
+dismiss_on_outside_click = true
+
+[[panel]]
+id = "menu_420"
+entry = "panel.luau"
+width = 420
+height = "content"
+max_height = 560
+placement = "attached"
+position = "auto"
+open_near_click = true
+dismiss_on_outside_click = true
+
+[[panel]]
+id = "menu_520"
+entry = "panel.luau"
+width = 520
+height = "content"
+max_height = 560
+placement = "attached"
+position = "auto"
+open_near_click = true
+dismiss_on_outside_click = true
+
+[[service]]
+id = "service"
+entry = "service.luau"

@@ -73,6 +73,7 @@ fn snapshot_focus_present() {
         pid: 1042,
         app_id: "App".into(),
         title: "Title".into(),
+        window: "1".into(),
     };
     let _ = std::hint::black_box(snapshot(Some(&focus)));
 }

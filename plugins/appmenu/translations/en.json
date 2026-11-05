@@ -1,0 +1,116 @@
+{
+  "notify": {
+    "click_failed": "AppMenu: the menu item could not be activated"
+  },
+  "panel": {
+    "back": "Back",
+    "empty": "This menu has no items.",
+    "expand_failed": "Could not read this menu from the application.",
+    "loading": "Loading…",
+    "missing": "The bridge ({bin}) is not installed or not on PATH.",
+    "next_menu": "Next menu",
+    "no_app": "No focused application.",
+    "no_menu": "The focused application exposes no menu.",
+    "previous_menu": "Previous menu"
+  },
+  "settings": {
+    "app_name_color": {
+      "description": "Empty: same as the widget text.",
+      "label": "Application name color"
+    },
+    "app_name_spacing": {
+      "description": "Pixels between the application name and the first menu title.",
+      "label": "Space after application name"
+    },
+    "bridge_path": {
+      "description": "Command or absolute path of noctalia-appmenu-bridge.",
+      "label": "Bridge command"
+    },
+    "hide_when_empty": {
+      "description": "Take no bar space while no application is focused.",
+      "label": "Hide when empty"
+    },
+    "item_hover_highlight": {
+      "description": "Draw a background behind the item under the pointer.",
+      "label": "Highlight item on hover"
+    },
+    "item_padding": {
+      "description": "Vertical padding of each menu item, in pixels.",
+      "label": "Item padding"
+    },
+    "item_padding_h": {
+      "description": "Horizontal padding of each menu item, in pixels. Also widens the panel.",
+      "label": "Item side padding"
+    },
+    "item_spacing": {
+      "description": "Pixels between menu items.",
+      "label": "Item spacing"
+    },
+    "item_text_color": {
+      "description": "Text color of the menu items. Empty: theme default.",
+      "label": "Item text color"
+    },
+    "max_menus": {
+      "description": "Most top-level menus shown in the bar.",
+      "label": "Maximum menus"
+    },
+    "max_title_chars": {
+      "description": "Longer menu titles are shortened with an ellipsis.",
+      "label": "Maximum title length"
+    },
+    "menu_highlight": {
+      "description": "When a background is drawn behind a menu title.",
+      "label": "Title background",
+      "options": {
+        "hover": "On hover and while open",
+        "never": "Never",
+        "open": "Only while its menu is open"
+      }
+    },
+    "menu_padding": {
+      "description": "Horizontal padding inside each title, in pixels. Also sizes its background.",
+      "label": "Menu title padding"
+    },
+    "menu_selected_text_color": {
+      "description": "Text color of the title whose menu is open. Empty: unchanged.",
+      "label": "Open menu title color"
+    },
+    "menu_spacing": {
+      "description": "Extra pixels between menu titles, on top of their padding.",
+      "label": "Space between menus"
+    },
+    "menu_text_color": {
+      "description": "Text color of the menu titles. Empty: same as the widget text.",
+      "label": "Menu title color"
+    },
+    "panel_extra_width": {
+      "description": "Pixels added to (or removed from) the estimated menu width. Raise it if long items get cut, lower it if panels are too wide.",
+      "label": "Panel width adjustment"
+    },
+    "panel_padding": {
+      "description": "Space between the panel edge and the menu items, in pixels.",
+      "label": "Panel inner margin"
+    },
+    "show_app_name": {
+      "description": "Show the focused application's name before its menus.",
+      "label": "Show application name"
+    },
+    "show_menu_arrows": {
+      "description": "Arrows at the top of the panel to step to the previous/next menu.",
+      "label": "Show menu arrows"
+    },
+    "show_menu_title": {
+      "description": "Repeat the open menu's name at the top of the panel.",
+      "label": "Show menu name"
+    }
+  },
+  "status": {
+    "exited": "The AppMenu bridge stopped; restarting. Log: $XDG_RUNTIME_DIR/noctalia-appmenu-bridge.log",
+    "spawn_failed": "Could not start the AppMenu bridge; retrying.",
+    "stale": "The AppMenu bridge is not responding."
+  },
+  "tooltip": {
+    "missing": "noctalia-appmenu-bridge not found ({bin})",
+    "waiting": "Waiting for a focused application…"
+  }
+}

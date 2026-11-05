@@ -1,80 +1,65 @@
-# Security policy
+# Security
 
 ## Reporting
 
-Report vulnerabilities through GitHub's private vulnerability advisory flow:
+Report vulnerabilities privately through GitHub's advisory flow:
+https://github.com/goglioandrea/noctalia-appmenu/security/advisories/new
 
-**https://github.com/yolo-labz/noctalia-appmenu/security/advisories/new**
-
-Do not file public issues for security problems.
-
-We aim to triage within 7 days and ship a fix within 30 days for high/critical issues. PGP keys are intentionally not provided — the GitHub PVR flow is end-to-end encrypted and audit-logged.
-
-## Supported versions
-
-Only the latest minor release on the `main` branch receives security fixes. We do not backport to older releases — if you cannot update, pin the latest tag and apply the fix yourself.
-
-## Supply-chain posture
-
-Releases are produced by a hardened self-hosted GitHub Actions runner (Tailscale-only, `step-security/harden-runner` in audit mode), gated by Repository Rulesets requiring CodeQL, OSV-Scanner, OpenSSF Scorecard, SonarQube, and reproducibility checks to pass before merge to `main`.
-
-Each release artefact ships:
-
-- **Build provenance** via `actions/attest-build-provenance@v2` — verifiable with `gh attestation verify <artefact> --owner yolo-labz`.
-- **SBOMs** in two formats:
-  - CycloneDX 1.7 (`*.cdx.json`)
-  - SPDX 2.3 (`*.spdx.json`)
-- **Sigstore-keyless cosign** signature on every binary blob.
-- **Reproducible build** — the bridge crate is built with `SOURCE_DATE_EPOCH=$(git log -1 --format=%ct)` and `RUSTFLAGS="-C link-arg=-Wl,--build-id=none"`. The `reproducibility.yml` workflow rebuilds the artefact from a clean checkout and asserts byte-equality with the release blob.
-
-Verify before manual installation:
-
-```bash
-# 1. Provenance
-gh attestation verify ./noctalia-appmenu-bridge --owner yolo-labz
-
-# 2. Cosign signature (fallback / offline)
-cosign verify-blob \
-  --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
-  --certificate-identity-regexp '^https://github\.com/yolo-labz/noctalia-appmenu/' \
-  --signature noctalia-appmenu-bridge.sig \
-  --bundle noctalia-appmenu-bridge.bundle \
-  ./noctalia-appmenu-bridge
-
-# 3. SBOM (any review tool)
-syft scan ./noctalia-appmenu-bridge -o cyclonedx-json | diff - sbom.cdx.json
-```
+Issues that also affect upstream should be reported to
+[yolo-labz/noctalia-appmenu](https://github.com/yolo-labz/noctalia-appmenu/security/advisories/new) too.
 
 ## Threat model
 
-### In scope
+Everything runs as the logged-in user. The bridge needs no privileges and opens no
+network sockets. The inputs it does not control are:
 
-- A malicious local process attempting to spoof `org.noctalia.AppMenu.Active` and inject menu items into the bar.
-- A malicious upstream in `cargo`/`nixpkgs` shipping a tampered version of `zbus`, `niri-ipc`, or one of the tracked actions.
-- A bad commit landing on `main` (covered by required-checks ruleset, signed-commits, and CODEOWNERS).
+1. **Applications on the accessibility bus.** Any app can publish an arbitrary
+   AT-SPI tree: labels, child counts, references to other accessibles.
+2. **The compositor IPC** (niri / Umbriel). Trusted: it already controls every
+   window.
+3. **`active.json` and the CLI arguments** of `atspi-click` / `atspi-expand`,
+   which carry values that originated from (1).
+4. **`.desktop` files** in the XDG data dirs (used by the fallback menu). Same trust
+   as the user's own files.
 
-### Out of scope
+The goals: a hostile app must not be able to make a menu click run arbitrary
+commands, act on a different app, or crash/stall the bridge; menu contents (which
+can include window titles, recent files, bookmarks) must not be readable by other
+local users.
 
-- The user's display server (niri) being compromised. Anything past the niri socket is trusted.
-- Apps the user has chosen to run. We render whatever `com.canonical.dbusmenu` payload the active app published — we do not validate menu content.
-- Display-server rooting (XWayland, Pipewire screencast). Standard niri threat model applies.
+## Audit (November 2026) — findings and fixes
 
-## Hardening checklist (CI-enforced)
+| # | Finding | Severity | Fix |
+|---|---|---|---|
+| 1 | The synthetic window menu dispatched `niri:<action>` by passing `<action>` to `niri msg action` unchecked. The value travels through `active.json` and a CLI argument, so anything able to influence it could request any niri action, including `spawn`. | Medium | Closed allow-list of window actions (`wm::is_allowed_niri_action`), applied before any compositor call; Umbriel actions come from a fixed translation table. |
+| 2 | An app-reported `ChildCount` (an `i32`) was used as a `Vec` capacity and loop bound. A negative value became a huge `usize` (an abort, since release builds use `panic = "abort"`); a huge positive one meant millions of D-Bus round-trips. | Medium (DoS) | `clamp_child_count`: 0 ..= 512 children per node. |
+| 3 | Menu walks followed child references to *any* bus connection, so an app could list another app's accessibles as its own menu items and have an innocent-looking click activate something elsewhere. | Medium | The walk only follows children on the parent's own connection. |
+| 4 | Labels were unbounded, so an app could inflate `active.json` and the shell's memory. | Low | Labels truncated to 256 characters. |
+| 5 | `active.json` was written with the default umask (usually world-readable `0644`) and, without `HOME`, under the shared `/tmp` (symlink / pre-creation attacks). Writes were also non-atomic, so readers could see torn JSON. | Low | Private `0700` directory, `0600` file, refuses a symlinked directory, atomic write via temp file + `rename`; falls back to `$XDG_RUNTIME_DIR`, never `/tmp`. |
+| 6 | The upstream push path spawned `qs` (resolved through `PATH`) synchronously on every change. | Info | Removed; updates go to stdout. |
+| 7 | `.claude/settings.json` pre-approved broad shell commands (`gh:*`, `nixos-rebuild:*`, `systemctl --user:*`, …) for any AI agent opened in the repo. | Info | Trimmed to read-only and build/test commands. |
 
-Every release workflow:
+Hyprland (added later) follows the same rules: its window actions come from a fixed
+translation table (`hyprland::commands_for`), and every window address is validated as
+plain hex (`hyprland::parse_address`) before it is interpolated into a `dispatch`
+command, so a crafted id cannot smuggle in another dispatcher (such as `exec`).
 
-- pins every action by full 40-char SHA with trailing `# vX.Y.Z` comment;
-- declares `permissions: {}` at workflow level, re-grants per-job;
-- runs `step-security/harden-runner` in `audit` mode (flipped to `block` once egress is observed clean);
-- declares `timeout-minutes` on every job;
-- uses `persist-credentials: false` on `actions/checkout` unless pushing.
+The plugin side adds defence in depth: the service validates every service/path/window
+before it goes on the bridge's command line, passes them as an argv array (no shell)
+after `--`, and reads only the bridge's own `…/noctalia-appmenu/active.json`.
 
-Bridge runtime hardening:
+### Inherent to the design (not fixable here)
 
-- systemd user unit runs with `NoNewPrivileges=true`, `ProtectSystem=strict`, `ProtectHome=read-only`, `RestrictAddressFamilies=AF_UNIX`, `MemoryDenyWriteExecute=true`.
-- The bridge does not open listening sockets — it only speaks D-Bus to the user session bus.
-- It does not exec subprocesses except `niri msg` (binary path resolved once at startup, not from `$PATH`).
+- The bridge sets `org.a11y.Status.IsEnabled = true` so apps export their trees. That
+  is how every screen reader works, but it means any process of yours can read the
+  UI of every accessible app. Do not run untrusted software in the same session if
+  that matters to you.
+- Any process in your session can call the bridge's `RefreshActive` D-Bus method
+  (a re-walk). It cannot do anything else through it.
 
-## SCorecard ceiling
+### Not checked in this audit
 
-Realistic ceiling for this repo is ~8.7/10 — solo-dev contributors check is structurally capped. We accept the loss; full disclosure in this file.
+- Third-party crate advisories: run `cargo audit` / `cargo deny check` in `bridge/`
+  (the upstream `deny.toml` is kept).
+- The GitHub workflows still target upstream's self-hosted runner and will not run on
+  this fork until they are adapted.
