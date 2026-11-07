@@ -17,6 +17,13 @@ be carried over. What changed:
 | Updates to the UI | `qs ipc call` | JSON lines on the bridge's stdout (`--stream`) |
 | Packaging | Nix flake | **Arch `PKGBUILD`** (Nix files kept, untested) |
 
+# images
+![noctalia bar view](/image1.png)
+
+![vivaldi example](/image2.png)
+
+![dolphin example](/image3.png)
+
 ## How it works
 
 ```
